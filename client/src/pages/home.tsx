@@ -77,7 +77,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
-                  South Asia Consultancy
+                  Siddik
                 </h1>
                 <p className="text-xs text-gray-600">Attendance Management</p>
               </div>

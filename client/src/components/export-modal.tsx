@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -49,7 +49,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      
+
       // Get filename from response headers or create default
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `attendance_${exportData.month}_${exportData.year}.${exportData.format}`;
@@ -59,7 +59,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
           filename = filenameMatch[1];
         }
       }
-      
+
       link.download = filename;
       document.body.appendChild(link);
       link.click();
@@ -70,7 +70,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
         title: "Success",
         description: `${exportData.format.toUpperCase()} file downloaded successfully`,
       });
-      
+
       onClose();
     } catch (error: any) {
       toast({
@@ -96,11 +96,11 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
             Export Attendance
           </DialogTitle>
         </DialogHeader>
-        
+
         <div id="export-description" className="sr-only">
           Export attendance data for a specific month and year in XLSX or PDF format.
         </div>
-        
+
         <div className="space-y-4">
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-1">Month</Label>
@@ -117,7 +117,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
               </SelectContent>
             </Select>
           </div>
-          
+
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-1">Year</Label>
             <Select value={exportData.year} onValueChange={(value) => setExportData({ ...exportData, year: value })}>
@@ -131,7 +131,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
               </SelectContent>
             </Select>
           </div>
-          
+
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2">Export Format</Label>
             <RadioGroup 
@@ -150,7 +150,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
               </div>
             </RadioGroup>
           </div>
-          
+
           <div className="bg-blue-50 p-3 rounded-lg">
             <div className="flex items-start">
               <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2" />
@@ -161,21 +161,12 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
               </div>
             </div>
           </div>
-          
-          <div className="flex justify-end space-x-3 pt-4">
-            <Button 
-              variant="outline"
-              onClick={onClose}
-              data-testid="button-cancel-export"
-            >
+
+          <div className="modal-buttons">
+            <Button variant="outline" onClick={onClose} className="min-w-24">
               Cancel
             </Button>
-            <Button 
-              onClick={handleExport}
-              className="bg-secondary hover:bg-secondary-light text-white"
-              disabled={isLoading}
-              data-testid="button-generate-export"
-            >
+            <Button variant="default" onClick={handleExport} className="min-w-24" disabled={isLoading} data-testid="button-generate-export">
               {isLoading ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />

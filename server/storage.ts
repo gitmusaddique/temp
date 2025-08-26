@@ -1,5 +1,7 @@
 import { type Employee, type InsertEmployee, type AttendanceRecord, type InsertAttendance } from "@shared/schema";
 import { randomUUID } from "crypto";
+import Database from 'better-sqlite3';
+import path from 'path';
 
 export interface IStorage {
   // Employee operations
@@ -9,43 +11,151 @@ export interface IStorage {
   createEmployee(employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
   deleteEmployee(id: string): Promise<boolean>;
-  
   // Attendance operations
   getAttendanceRecord(employeeId: string, month: number, year: number): Promise<AttendanceRecord | undefined>;
   createOrUpdateAttendance(attendance: InsertAttendance): Promise<AttendanceRecord>;
   getAttendanceForMonth(month: number, year: number): Promise<AttendanceRecord[]>;
 }
 
-export class MemStorage implements IStorage {
-  private employees: Map<string, Employee>;
-  private attendanceRecords: Map<string, AttendanceRecord>;
-  private nextSerialNumber: number;
+export class SqliteStorage implements IStorage {
+  private db: Database.Database;
+  private statements: any;
 
-  constructor() {
-    this.employees = new Map();
-    this.attendanceRecords = new Map();
-    this.nextSerialNumber = 1;
+  constructor(dbPath: string = 'attendance.db') {
+    // Create database in current directory or specified path
+    const fullPath = path.resolve(dbPath);
+    console.log('Initializing SQLite database at:', fullPath);
+    
+    this.db = new Database(fullPath, { 
+      verbose: console.log, // Optional: remove this to reduce logs
+      fileMustExist: false
+    });
+
+    // Enable WAL mode for better concurrency
+    this.db.pragma('journal_mode = WAL');
+    this.db.pragma('synchronous = NORMAL');
+    this.db.pragma('foreign_keys = ON');
+
+    this.initializeTables();
+    this.prepareStatements();
+  }
+
+  private initializeTables() {
+    this.db.exec(`
+      CREATE TABLE IF NOT EXISTS employees (
+        id TEXT PRIMARY KEY,
+        employee_id TEXT UNIQUE NOT NULL,
+        name TEXT NOT NULL,
+        designation TEXT,
+        department TEXT,
+        status TEXT DEFAULT 'Active',
+        serial_number INTEGER UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
+      CREATE TABLE IF NOT EXISTS attendance_records (
+        id TEXT PRIMARY KEY,
+        employee_id TEXT NOT NULL,
+        month INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        attendance_data TEXT, -- JSON string
+        total_on_duty INTEGER DEFAULT 0,
+        ot_days INTEGER DEFAULT 0,
+        remarks TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
+        UNIQUE(employee_id, month, year)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_attendance_month_year ON attendance_records (month, year);
+      CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance_records (employee_id);
+      CREATE INDEX IF NOT EXISTS idx_employee_serial ON employees (serial_number);
+    `);
+  }
+
+  private prepareStatements() {
+    this.statements = {
+      // Employee statements
+      getEmployee: this.db.prepare('SELECT * FROM employees WHERE id = ?'),
+      getEmployeeByEmployeeId: this.db.prepare('SELECT * FROM employees WHERE employee_id = ?'),
+      getAllEmployees: this.db.prepare('SELECT * FROM employees ORDER BY serial_number ASC'),
+      getMaxSerialNumber: this.db.prepare('SELECT MAX(serial_number) as max_serial FROM employees'),
+      createEmployee: this.db.prepare(`
+        INSERT INTO employees (id, employee_id, name, designation, department, status, serial_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `),
+      updateEmployee: this.db.prepare(`
+        UPDATE employees 
+        SET name = COALESCE(?, name),
+            designation = COALESCE(?, designation),
+            department = COALESCE(?, department),
+            status = COALESCE(?, status),
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `),
+      deleteEmployee: this.db.prepare('DELETE FROM employees WHERE id = ?'),
+
+      // Attendance statements
+      getAttendanceRecord: this.db.prepare(`
+        SELECT * FROM attendance_records 
+        WHERE employee_id = ? AND month = ? AND year = ?
+      `),
+      createOrUpdateAttendance: this.db.prepare(`
+        INSERT INTO attendance_records (id, employee_id, month, year, attendance_data, total_on_duty, ot_days, remarks)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(employee_id, month, year) DO UPDATE SET
+          attendance_data = excluded.attendance_data,
+          total_on_duty = excluded.total_on_duty,
+          ot_days = excluded.ot_days,
+          remarks = excluded.remarks,
+          updated_at = CURRENT_TIMESTAMP
+      `),
+      getAttendanceForMonth: this.db.prepare(`
+        SELECT ar.*, e.name as employee_name, e.employee_id as employee_code
+        FROM attendance_records ar
+        LEFT JOIN employees e ON ar.employee_id = e.id
+        WHERE ar.month = ? AND ar.year = ?
+        ORDER BY e.serial_number ASC
+      `)
+    };
   }
 
   // Employee operations
   async getEmployee(id: string): Promise<Employee | undefined> {
-    return this.employees.get(id);
+    const row = this.statements.getEmployee.get(id);
+    return row ? this.mapEmployeeFromDb(row) : undefined;
   }
 
   async getEmployeeByEmployeeId(employeeId: string): Promise<Employee | undefined> {
-    return Array.from(this.employees.values()).find(
-      (emp) => emp.employeeId === employeeId,
-    );
+    const row = this.statements.getEmployeeByEmployeeId.get(employeeId);
+    return row ? this.mapEmployeeFromDb(row) : undefined;
   }
 
   async getAllEmployees(): Promise<Employee[]> {
-    return Array.from(this.employees.values()).sort((a, b) => a.serialNumber - b.serialNumber);
+    const rows = this.statements.getAllEmployees.all();
+    return rows.map(row => this.mapEmployeeFromDb(row));
   }
 
   async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
     const id = randomUUID();
-    const employeeId = String(this.nextSerialNumber).padStart(3, '0');
     
+    // Get next serial number
+    const maxSerialResult = this.statements.getMaxSerialNumber.get();
+    const nextSerial = (maxSerialResult.max_serial || 0) + 1;
+    const employeeId = String(nextSerial).padStart(3, '0');
+
+    this.statements.createEmployee.run(
+      id,
+      employeeId,
+      insertEmployee.name,
+      insertEmployee.designation || null,
+      insertEmployee.department || null,
+      insertEmployee.status || "Active",
+      nextSerial
+    );
+
     const employee: Employee = {
       id,
       employeeId,
@@ -53,58 +163,128 @@ export class MemStorage implements IStorage {
       designation: insertEmployee.designation || null,
       department: insertEmployee.department || null,
       status: insertEmployee.status || "Active",
-      serialNumber: this.nextSerialNumber,
+      serialNumber: nextSerial,
     };
-    
-    this.employees.set(id, employee);
-    this.nextSerialNumber++;
+
     return employee;
   }
 
   async updateEmployee(id: string, updateData: Partial<InsertEmployee>): Promise<Employee | undefined> {
-    const employee = this.employees.get(id);
-    if (!employee) return undefined;
+    const result = this.statements.updateEmployee.run(
+      updateData.name || null,
+      updateData.designation || null,
+      updateData.department || null,
+      updateData.status || null,
+      id
+    );
 
-    const updatedEmployee: Employee = {
-      ...employee,
-      ...updateData,
-    };
-
-    this.employees.set(id, updatedEmployee);
-    return updatedEmployee;
+    if (result.changes === 0) return undefined;
+    
+    return this.getEmployee(id);
   }
 
   async deleteEmployee(id: string): Promise<boolean> {
-    return this.employees.delete(id);
+    const result = this.statements.deleteEmployee.run(id);
+    return result.changes > 0;
   }
 
   // Attendance operations
   async getAttendanceRecord(employeeId: string, month: number, year: number): Promise<AttendanceRecord | undefined> {
-    const key = `${employeeId}-${month}-${year}`;
-    return this.attendanceRecords.get(key);
+    const row = this.statements.getAttendanceRecord.get(employeeId, month, year);
+    return row ? this.mapAttendanceFromDb(row) : undefined;
   }
 
   async createOrUpdateAttendance(attendance: InsertAttendance): Promise<AttendanceRecord> {
-    const key = `${attendance.employeeId}-${attendance.month}-${attendance.year}`;
-    const existing = this.attendanceRecords.get(key);
+    const id = randomUUID();
+    const attendanceDataJson = attendance.attendanceData 
+      ? JSON.stringify(attendance.attendanceData)
+      : null;
 
-    const record: AttendanceRecord = {
-      id: existing?.id || randomUUID(),
-      ...attendance,
-      totalOnDuty: attendance.totalOnDuty || 0,
-      otDays: attendance.otDays || 0,
-      remarks: attendance.remarks || null,
-    };
+    this.statements.createOrUpdateAttendance.run(
+      id,
+      attendance.employeeId,
+      attendance.month,
+      attendance.year,
+      attendanceDataJson,
+      attendance.totalOnDuty || 0,
+      attendance.otDays || 0,
+      attendance.remarks || null
+    );
 
-    this.attendanceRecords.set(key, record);
+    // Fetch and return the created/updated record
+    const record = await this.getAttendanceRecord(attendance.employeeId, attendance.month, attendance.year);
+    if (!record) {
+      throw new Error('Failed to create or update attendance record');
+    }
     return record;
   }
 
   async getAttendanceForMonth(month: number, year: number): Promise<AttendanceRecord[]> {
-    return Array.from(this.attendanceRecords.values()).filter(
-      (record) => record.month === month && record.year === year
-    );
+    const rows = this.statements.getAttendanceForMonth.all(month, year);
+    return rows.map(row => this.mapAttendanceFromDb(row));
+  }
+
+  // Helper methods to map database rows to domain objects
+  private mapEmployeeFromDb(row: any): Employee {
+    return {
+      id: row.id,
+      employeeId: row.employee_id,
+      name: row.name,
+      designation: row.designation,
+      department: row.department,
+      status: row.status,
+      serialNumber: row.serial_number,
+    };
+  }
+
+  private mapAttendanceFromDb(row: any): AttendanceRecord {
+    let attendanceData = null;
+    if (row.attendance_data) {
+      try {
+        attendanceData = JSON.parse(row.attendance_data);
+      } catch (e) {
+        console.error('Failed to parse attendance data:', e);
+        attendanceData = {};
+      }
+    }
+
+    return {
+      id: row.id,
+      employeeId: row.employee_id,
+      month: row.month,
+      year: row.year,
+      attendanceData,
+      totalOnDuty: row.total_on_duty,
+      otDays: row.ot_days,
+      remarks: row.remarks,
+    };
+  }
+
+  // Utility methods
+  close() {
+    this.db.close();
+  }
+
+  backup(backupPath: string) {
+    this.db.backup(backupPath);
+    console.log('Database backed up to:', backupPath);
   }
 }
 
-export const storage = new MemStorage();
+// Create the storage instance with SQLite
+export const storage = new SqliteStorage();
+
+// Ensure database is closed properly on process exit
+process.on('exit', () => {
+  storage.close();
+});
+
+process.on('SIGINT', () => {
+  storage.close();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  storage.close();
+  process.exit(0);
+});

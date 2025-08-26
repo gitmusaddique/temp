@@ -17,17 +17,17 @@ interface EmployeeCardProps {
 
 export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [editData, setEditData] = useState({
     name: employee.name,
     designation: employee.designation || "",
-    department: employee.department || "",
     status: employee.status,
   });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   const updateEmployeeMutation = useMutation({
-    mutationFn: async (data: typeof editData) => {
+    mutationFn: async (data: Omit<typeof editData, 'id'> & { id: string | number }) => {
       await apiRequest("PUT", `/api/employees/${employee.id}`, data);
     },
     onSuccess: () => {
@@ -48,25 +48,34 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
   });
 
   const handleSave = () => {
+    const newErrors: Record<string, string> = {};
     if (!editData.name.trim()) {
-      toast({
-        title: "Error",
-        description: "Name is required",
-        variant: "destructive",
-      });
-      return;
+      newErrors.name = "Name is required";
     }
-    updateEmployeeMutation.mutate(editData);
+    if (!editData.designation.trim()) {
+      newErrors.designation = "Designation is required";
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length === 0) {
+      updateEmployeeMutation.mutate({
+        id: employee.id,
+        name: editData.name,
+        designation: editData.designation,
+        status: editData.status,
+      });
+    }
   };
 
   const handleCancel = () => {
     setEditData({
       name: employee.name,
       designation: employee.designation || "",
-      department: employee.department || "",
       status: employee.status,
     });
     setIsEditing(false);
+    setErrors({});
   };
 
   return (
@@ -86,6 +95,7 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
                     className="font-medium text-lg"
                     data-testid={`input-edit-name-${employee.id}`}
                   />
+                  {errors.name && <p className="text-red-500 text-xs">{errors.name}</p>}
                   <Input
                     value={editData.designation}
                     onChange={(e) => setEditData({ ...editData, designation: e.target.value })}
@@ -93,6 +103,7 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
                     className="text-sm"
                     data-testid={`input-edit-designation-${employee.id}`}
                   />
+                  {errors.designation && <p className="text-red-500 text-xs">{errors.designation}</p>}
                 </div>
               ) : (
                 <div>
@@ -106,7 +117,7 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
               )}
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {isEditing ? (
               <>
@@ -164,26 +175,10 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
             </span>
           </div>
           <div className="flex justify-between items-center">
-            <span className="text-sm text-gray-600">Department:</span>
-            {isEditing ? (
-              <Input
-                value={editData.department}
-                onChange={(e) => setEditData({ ...editData, department: e.target.value })}
-                placeholder="Department"
-                className="text-sm w-32"
-                data-testid={`input-edit-department-${employee.id}`}
-              />
-            ) : (
-              <span className="text-sm font-medium" data-testid={`text-employee-department-${employee.id}`}>
-                {employee.department || "No department"}
-              </span>
-            )}
-          </div>
-          <div className="flex justify-between items-center">
             <span className="text-sm text-gray-600">Status:</span>
             {isEditing ? (
-              <Select 
-                value={editData.status} 
+              <Select
+                value={editData.status}
                 onValueChange={(value) => setEditData({ ...editData, status: value as "Active" | "Inactive" })}
               >
                 <SelectTrigger className="w-24 h-8" data-testid={`select-edit-status-${employee.id}`}>
@@ -195,7 +190,7 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
                 </SelectContent>
               </Select>
             ) : (
-              <Badge 
+              <Badge
                 variant={employee.status === "Active" ? "default" : "secondary"}
                 className={employee.status === "Active" ? "bg-green-100 text-green-800" : ""}
                 data-testid={`badge-employee-status-${employee.id}`}

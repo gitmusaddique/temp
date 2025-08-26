@@ -30,11 +30,11 @@ export default function DeleteConfirmationModal({
             <p className="text-sm text-gray-600">This action cannot be undone.</p>
           </div>
         </div>
-        
+
         <div id="delete-description" className="sr-only">
           Permanently delete employee record and all associated data.
         </div>
-        
+
         <p className="text-gray-700 mb-6" data-testid="text-delete-confirmation">
           Are you sure you want to delete{" "}
           <span className="font-medium" data-testid="text-employee-to-delete">
@@ -42,8 +42,8 @@ export default function DeleteConfirmationModal({
           </span>
           ? All associated data will be permanently removed.
         </p>
-        
-        <div className="flex justify-end space-x-3">
+
+        <div className="modal-buttons">
           <Button 
             variant="outline"
             onClick={onClose}

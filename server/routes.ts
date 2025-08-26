@@ -1,8 +1,14 @@
+
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertEmployeeSchema, insertAttendanceSchema } from "@shared/schema";
 import { z } from "zod";
+
+// Static imports for export functionality
+import * as XLSX from 'xlsx';
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Employee routes
@@ -73,7 +79,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const month = parseInt(req.params.month);
       const year = parseInt(req.params.year);
-      
+
       if (isNaN(month) || isNaN(year) || month < 1 || month > 12) {
         return res.status(400).json({ message: "Invalid month or year" });
       }
@@ -98,222 +104,561 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Export routes
+  // Improved XLSX Export with proper formatting
   app.post("/api/export/xlsx", async (req, res) => {
     try {
       const { month, year } = req.body;
-      
-      if (!month || !year) {
-        return res.status(400).json({ message: "Month and year are required" });
+
+      // Enhanced validation with current date check
+      const monthNum = parseInt(month);
+      const yearNum = parseInt(year);
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      if (!monthNum || !yearNum || monthNum < 1 || monthNum > 12 || yearNum < 1900) {
+        return res.status(400).json({
+          message: "Invalid month or year. Month must be 1-12, year must be from 1900 onwards"
+        });
+      }
+
+      // Check if the requested date is in the future
+      if (yearNum > currentYear || (yearNum === currentYear && monthNum > currentMonth)) {
+        return res.status(400).json({
+          message: `Cannot export future dates. Current date is ${currentMonth}/${currentYear}`
+        });
       }
 
       const employees = await storage.getAllEmployees();
-      const attendance = await storage.getAttendanceForMonth(month, year);
-      
-      const XLSX = require('xlsx');
-      
+      const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
+
+      if (!employees || employees.length === 0) {
+        return res.status(404).json({ message: "No employees found" });
+      }
+
       // Create attendance data for Excel
       const monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
       ];
-      
-      const daysInMonth = new Date(year, month, 0).getDate();
+
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
       const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-      
-      // Prepare headers
+
+      // Prepare headers to match the reference format
       const headers = [
-        "S. No.",
-        "Employee ID", 
-        "Name",
-        "Designation",
-        "Department",
+        "SL.NO",
+        "NAME",
+        "DESIGNATION",
         ...dayColumns.map(day => day.toString()),
         "T/ON DUTY",
         "OT DAYS",
         "REMARKS"
       ];
-      
-      // Prepare data rows
+
+      // Prepare data rows matching the reference format
       const data = employees.map((employee, index) => {
         const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
         let attendanceData: Record<string, string> = {};
-        
+
         if (attendanceRecord && attendanceRecord.attendanceData) {
           try {
-            attendanceData = JSON.parse(attendanceRecord.attendanceData);
-          } catch {
+            attendanceData = typeof attendanceRecord.attendanceData === 'string'
+              ? JSON.parse(attendanceRecord.attendanceData)
+              : attendanceRecord.attendanceData;
+          } catch (parseError) {
+            console.error(`Failed to parse attendance data for employee ${employee.id}:`, parseError);
             attendanceData = {};
           }
         }
-        
+
         // Calculate totals
-        const presentDays = Object.values(attendanceData).filter(status => status === 'P').length;
-        const otDays = Object.values(attendanceData).filter(status => status === 'OT').length;
-        
+        const attendanceValues = Object.values(attendanceData);
+        const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
+        const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
+
         const row = [
           index + 1,
-          employee.employeeId,
-          employee.name,
-          employee.designation || "",
-          employee.department || "",
-          ...dayColumns.map(day => attendanceData[day.toString()] || ""),
+          employee.name || '',
+          employee.designation || '',
+          ...dayColumns.map(day => {
+            const status = attendanceData[day.toString()];
+            // Normalize status values to match reference format
+            switch(status) {
+              case 'P': case 'Present': return 'P';
+              case 'A': case 'Absent': return 'A';
+              case 'OT': case 'Overtime': return 'OT';
+              case 'L': case 'Leave': return 'L';
+              case 'H': case 'Holiday': return 'H';
+              default: return status || '';
+            }
+          }),
           presentDays,
           otDays,
-          attendanceRecord?.remarks || ""
+          attendanceRecord?.remarks || ''
         ];
-        
+
         return row;
       });
-      
-      // Create worksheet
-      const wsData = [headers, ...data];
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      
-      // Create workbook
+
+      // Create worksheet with proper headers matching reference format
       const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, `${monthNames[month - 1]} ${year}`);
-      
-      // Generate buffer
+      const ws = XLSX.utils.aoa_to_sheet([]);
+
+      // Add title rows with proper formatting structure
+      XLSX.utils.sheet_add_aoa(ws, [
+        ['South Asia Consultancy'],                                    // Row 1
+        ['Attendance'],                                                // Row 2
+        [`ROM-100-II MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`], // Row 3
+        [], // Empty row 4
+        headers // Row 5 - Headers
+      ], { origin: 'A1' });
+
+      // Add data starting from row 6 (after headers)
+      XLSX.utils.sheet_add_aoa(ws, data, { origin: 'A6' });
+
+      // Set column widths to match reference format
+      const colWidths = [
+        { wch: 8 },   // SL.NO
+        { wch: 25 },  // NAME
+        { wch: 18 },  // DESIGNATION
+        ...dayColumns.map(() => ({ wch: 4 })), // Day columns (smaller)
+        { wch: 12 },  // T/ON DUTY
+        { wch: 10 },   // OT DAYS
+        { wch: 30 }   // REMARKS
+      ];
+      ws['!cols'] = colWidths;
+
+      // Merge cells for title rows
+      ws['!merges'] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: headers.length - 1 } }, // Merge company name row
+        { s: { r: 1, c: 0 }, e: { r: 1, c: headers.length - 1 } }, // Merge attendance row
+        { s: { r: 2, c: 0 }, e: { r: 2, c: headers.length - 1 } }  // Merge ROM-100-II month row
+      ];
+
+      // Style the company name (Row 1)
+      const companyCellA1 = ws['A1'];
+      if (!companyCellA1) ws['A1'] = { t: 's', v: 'South Asia Consultancy' };
+      ws['A1'].s = {
+        font: { bold: true, size: 18 },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'medium' },
+          bottom: { style: 'thin' },
+          left: { style: 'medium' },
+          right: { style: 'medium' }
+        }
+      };
+
+      // Style the attendance title (Row 2)
+      const attendanceCellA2 = ws['A2'];
+      if (!attendanceCellA2) ws['A2'] = { t: 's', v: 'Attendance' };
+      ws['A2'].s = {
+        font: { bold: true, size: 16 },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin' },
+          bottom: { style: 'thin' },
+          left: { style: 'medium' },
+          right: { style: 'medium' }
+        }
+      };
+
+      // Style the ROM-100-II month row (Row 3)
+      const monthCellA3 = ws['A3'];
+      if (!monthCellA3) ws['A3'] = { t: 's', v: `ROM-100-II MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}` };
+      ws['A3'].s = {
+        font: { bold: true, size: 14 },
+        alignment: { horizontal: 'center', vertical: 'center' },
+        border: {
+          top: { style: 'thin' },
+          bottom: { style: 'medium' },
+          left: { style: 'medium' },
+          right: { style: 'medium' }
+        }
+      };
+
+      // Style the header row (Row 5) - make all headers bold
+      const headerRowIndex = 4; // 0-based index for row 5
+      for (let col = 0; col < headers.length; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: headerRowIndex, c: col });
+        if (!ws[cellAddress]) ws[cellAddress] = { t: 's', v: headers[col] };
+        ws[cellAddress].s = {
+          font: { bold: true, size: 11 },
+          alignment: { horizontal: 'center', vertical: 'center' },
+          fill: { fgColor: { rgb: 'E6E6E6' } }, // Light gray background
+          border: {
+            top: { style: 'medium' },
+            bottom: { style: 'medium' },
+            left: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+        };
+      }
+
+      // Style data rows - make SL.NO column bold and add borders
+      const startDataRow = 5; // 0-based index for row 6
+      for (let row = 0; row < data.length; row++) {
+        for (let col = 0; col < headers.length; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: startDataRow + row, c: col });
+          const cellValue = data[row][col];
+
+          if (!ws[cellAddress]) {
+            ws[cellAddress] = {
+              t: typeof cellValue === 'number' ? 'n' : 's',
+              v: cellValue
+            };
+          }
+
+          // Base style for all data cells
+          const cellStyle: any = {
+            alignment: { horizontal: col === 0 || col === headers.length - 2 || col === headers.length - 1 ? 'center' : 'left', vertical: 'center' },
+            border: {
+              top: { style: 'thin' },
+              bottom: { style: 'thin' },
+              left: { style: 'thin' },
+              right: { style: 'thin' }
+            }
+          };
+
+          // Make SL.NO column (first column) bold
+          if (col === 0) {
+            cellStyle.font = { bold: true };
+          }
+
+          // Color coding for attendance status
+          if (col >= 3 && col < 3 + daysInMonth) {
+            switch(cellValue) {
+              case 'P':
+                cellStyle.fill = { fgColor: { rgb: 'E6FFE6' } }; // Light green for present
+                break;
+              case 'A':
+                cellStyle.fill = { fgColor: { rgb: 'FFE6E6' } }; // Light red for absent
+                break;
+              case 'OT':
+                cellStyle.fill = { fgColor: { rgb: 'FFFFE6' } }; // Light yellow for overtime
+                break;
+              case 'L':
+                cellStyle.fill = { fgColor: { rgb: 'E6E6FF' } }; // Light blue for leave
+                break;
+              case 'H':
+                cellStyle.fill = { fgColor: { rgb: 'F0F0F0' } }; // Light gray for holiday
+                break;
+            }
+          }
+
+          ws[cellAddress].s = cellStyle;
+        }
+      }
+
+      // Add borders around the entire data table
+      const lastDataRow = startDataRow + data.length - 1;
+      const lastCol = headers.length - 1;
+
+      // Add thick borders around the entire table
+      for (let col = 0; col <= lastCol; col++) {
+        // Top border of header row
+        const headerCell = XLSX.utils.encode_cell({ r: headerRowIndex, c: col });
+        if (ws[headerCell] && ws[headerCell].s) {
+          ws[headerCell].s.border.top = { style: 'medium' };
+        }
+
+        // Bottom border of last data row
+        const lastRowCell = XLSX.utils.encode_cell({ r: lastDataRow, c: col });
+        if (ws[lastRowCell] && ws[lastRowCell].s) {
+          ws[lastRowCell].s.border.bottom = { style: 'medium' };
+        }
+      }
+
+      // Add thick left and right borders
+      for (let row = headerRowIndex; row <= lastDataRow; row++) {
+        // Left border
+        const leftCell = XLSX.utils.encode_cell({ r: row, c: 0 });
+        if (ws[leftCell] && ws[leftCell].s) {
+          ws[leftCell].s.border.left = { style: 'medium' };
+        }
+
+        // Right border
+        const rightCell = XLSX.utils.encode_cell({ r: row, c: lastCol });
+        if (ws[rightCell] && ws[rightCell].s) {
+          ws[rightCell].s.border.right = { style: 'medium' };
+        }
+      }
+
+      const sheetName = `${monthNames[monthNum - 1]} ${yearNum}`;
+      XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+      // Generate buffer with error handling
       const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-      
+
       // Set response headers
+      const filename = `attendance_${monthNames[monthNum - 1]}_${yearNum}.xlsx`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="attendance_${monthNames[month - 1]}_${year}.xlsx"`);
-      
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', buffer.length);
+
       res.send(buffer);
     } catch (error) {
       console.error('XLSX export error:', error);
-      res.status(500).json({ message: "Failed to generate XLSX export" });
+      res.status(500).json({
+        message: "Failed to generate XLSX export",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
+  // Improved PDF Export with dynamic layout and color coding
   app.post("/api/export/pdf", async (req, res) => {
     try {
       const { month, year } = req.body;
-      
-      if (!month || !year) {
-        return res.status(400).json({ message: "Month and year are required" });
+
+      // Enhanced validation with current date check
+      const monthNum = parseInt(month);
+      const yearNum = parseInt(year);
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1;
+      const currentYear = currentDate.getFullYear();
+
+      if (!monthNum || !yearNum || monthNum < 1 || monthNum > 12 || yearNum < 1900) {
+        return res.status(400).json({
+          message: "Invalid month or year. Month must be 1-12, year must be from 1900 onwards"
+        });
+      }
+
+      // Check if the requested date is in the future
+      if (yearNum > currentYear || (yearNum === currentYear && monthNum > currentMonth)) {
+        return res.status(400).json({
+          message: `Cannot export future dates. Current date is ${currentMonth}/${currentYear}`
+        });
       }
 
       const employees = await storage.getAllEmployees();
-      const attendance = await storage.getAttendanceForMonth(month, year);
-      
-      const { jsPDF } = require('jspdf');
-      require('jspdf-autotable');
-      
+      const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
+
+      if (!employees || employees.length === 0) {
+        return res.status(404).json({ message: "No employees found" });
+      }
+
       const monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
       ];
-      
-      const daysInMonth = new Date(year, month, 0).getDate();
+
+      const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
       const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-      
-      // Create PDF document in landscape mode
+
+      // Determine page size based on number of columns
+      const totalColumns = 9 + daysInMonth; // 9 fixed columns + day columns
+      let pageFormat = 'a4';
+      let orientation: 'landscape' | 'portrait' = 'landscape';
+
+      // For months with many days, use A3 or split into multiple tables
+      if (totalColumns > 40) {
+        pageFormat = 'a3';
+      }
+
+      // Create PDF document with dynamic sizing
       const doc = new jsPDF({
-        orientation: 'landscape',
+        orientation: orientation,
         unit: 'mm',
-        format: 'a4'
+        format: pageFormat as any
       });
-      
-      // Title
+
+      // Get page dimensions
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // Title with proper company header
       doc.setFontSize(16);
-      doc.text('SOUTH ASIA CONSULTANCY', 148, 20, { align: 'center' });
+      doc.setFont(undefined, 'bold');
+      doc.text('South Asia Consultancy', pageWidth / 2, 15, { align: 'center' });
+
       doc.setFontSize(14);
-      doc.text(`Attendance Sheet - ${monthNames[month - 1]} ${year}`, 148, 30, { align: 'center' });
-      
-      // Prepare table headers
+      doc.setFont(undefined, 'bold');
+      doc.text('Attendance', pageWidth / 2, 25, { align: 'center' });
+
+      doc.setFontSize(12);
+      doc.setFont(undefined, 'bold');
+      doc.text(`ROM-100-II MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`, pageWidth / 2, 35, { align: 'center' });
+
+      // Prepare table headers to match reference format
       const headers = [
-        'S.No.',
-        'Employee ID',
-        'Name', 
-        'Designation',
-        'Department',
+        'SL.NO',
+        'NAME',
+        'DESIGNATION',
         ...dayColumns.map(day => day.toString()),
         'T/ON DUTY',
         'OT DAYS',
         'REMARKS'
       ];
-      
-      // Prepare table data
+
+      // Prepare table data matching reference format
       const tableData = employees.map((employee, index) => {
         const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
         let attendanceData: Record<string, string> = {};
-        
+
         if (attendanceRecord && attendanceRecord.attendanceData) {
           try {
-            attendanceData = JSON.parse(attendanceRecord.attendanceData);
-          } catch {
+            attendanceData = typeof attendanceRecord.attendanceData === 'string'
+              ? JSON.parse(attendanceRecord.attendanceData)
+              : attendanceRecord.attendanceData;
+          } catch (parseError) {
+            console.error(`Failed to parse attendance data for employee ${employee.id}:`, parseError);
             attendanceData = {};
           }
         }
-        
+
         // Calculate totals
-        const presentDays = Object.values(attendanceData).filter(status => status === 'P').length;
-        const otDays = Object.values(attendanceData).filter(status => status === 'OT').length;
-        
+        const attendanceValues = Object.values(attendanceData);
+        const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
+        const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
+
         return [
           index + 1,
-          employee.employeeId,
-          employee.name,
-          employee.designation || "",
-          employee.department || "",
-          ...dayColumns.map(day => attendanceData[day.toString()] || ""),
+          (employee.name || '').substring(0, 15),
+          (employee.designation || '').substring(0, 12),
+          ...dayColumns.map(day => {
+            const status = attendanceData[day.toString()];
+            switch(status) {
+              case 'P': case 'Present': return 'P';
+              case 'A': case 'Absent': return 'A';
+              case 'OT': case 'Overtime': return 'OT';
+              case 'L': case 'Leave': return 'L';
+              case 'H': case 'Holiday': return 'H';
+              default: return status || '';
+            }
+          }),
           presentDays,
           otDays,
-          attendanceRecord?.remarks || ""
+          (attendanceRecord?.remarks || '').substring(0, 12)
         ];
       });
-      
-      // Generate table
-      (doc as any).autoTable({
-        head: [headers],
-        body: tableData,
-        startY: 40,
-        styles: {
-          fontSize: 6,
-          cellPadding: 1,
-        },
-        headStyles: {
-          fillColor: [41, 128, 185],
-          textColor: 255,
-          fontStyle: 'bold'
-        },
-        columnStyles: {
-          0: { cellWidth: 10 }, // S.No
-          1: { cellWidth: 15 }, // Employee ID
-          2: { cellWidth: 20 }, // Name
-          3: { cellWidth: 15 }, // Designation
-          4: { cellWidth: 15 }, // Department
-        },
-        margin: { top: 40, left: 10, right: 10 },
-        didDrawCell: function(data: any) {
-          // Color code attendance cells
-          if (data.section === 'body' && data.column.index >= 5 && data.column.index < 5 + daysInMonth) {
-            const cellValue = data.cell.raw;
-            if (cellValue === 'P') {
-              data.cell.styles.fillColor = [144, 238, 144]; // Light green
-            } else if (cellValue === 'A') {
-              data.cell.styles.fillColor = [255, 182, 193]; // Light red
-            } else if (cellValue === 'OT') {
-              data.cell.styles.fillColor = [255, 255, 224]; // Light yellow
+
+      // Calculate dynamic column widths
+      const availableWidth = pageWidth - 20; // Subtract margins
+      const fixedCols = 9; // Non-day columns
+      const fixedColsWidth = 70; // Total width for fixed columns
+      const dayColsWidth = availableWidth - fixedColsWidth;
+      const dayColWidth = Math.max(2.5, dayColsWidth / daysInMonth);
+
+      // Define column styles to match reference format
+      const columnStyles: { [key: number]: any } = {
+        0: { cellWidth: 8 },   // SL.NO
+        1: { cellWidth: 18, halign: 'left' },  // NAME
+        2: { cellWidth: 15, halign: 'left' }, // DESIGNATION
+        // Summary columns
+        [3 + daysInMonth]: { cellWidth: 10 },     // T/ON DUTY
+        [3 + daysInMonth + 1]: { cellWidth: 10 }, // OT DAYS
+        [3 + daysInMonth + 2]: { cellWidth: 15, halign: 'left' } // REMARKS
+      };
+
+      // Add day columns with dynamic width
+      for (let i = 0; i < daysInMonth; i++) {
+        columnStyles[3 + i] = { cellWidth: dayColWidth };
+      }
+
+      // Calculate font size based on number of columns
+      const baseFontSize = Math.max(3, Math.min(6, 200 / totalColumns));
+      const headerFontSize = Math.max(4, Math.min(7, 220 / totalColumns));
+
+      // Generate table with autoTable
+      try {
+        autoTable(doc, {
+          head: [headers],
+          body: tableData,
+          startY: 45,
+          styles: {
+            fontSize: baseFontSize,
+            cellPadding: 0.5,
+            overflow: 'linebreak',
+            halign: 'center',
+            valign: 'middle',
+            lineColor: [0, 0, 0],
+            lineWidth: 0.1
+          },
+          headStyles: {
+            fillColor: [255, 255, 255],
+            textColor: [0, 0, 0],
+            fontStyle: 'bold',
+            fontSize: headerFontSize,
+            lineColor: [0, 0, 0],
+            lineWidth: 0.5
+          },
+          columnStyles: columnStyles,
+          margin: { top: 45, left: 10, right: 10 },
+          tableWidth: 'auto',
+          // Enable horizontal scrolling for very wide tables
+          horizontalPageBreak: true,
+          horizontalPageBreakRepeat: [0, 1, 2], // Repeat first 3 columns on new pages
+          didDrawCell: function(data: any) {
+            // Color code attendance cells with vibrant colors
+            if (data.section === 'body' && data.column.index >= 3 && data.column.index < 3 + daysInMonth) {
+              const cellValue = data.cell.raw;
+              switch(cellValue) {
+                case 'P':
+                  data.cell.styles.fillColor = [144, 238, 144]; // Light green for Present
+                  data.cell.styles.textColor = [0, 100, 0]; // Dark green text
+                  break;
+                case 'A':
+                  data.cell.styles.fillColor = [255, 182, 193]; // Light red for Absent
+                  data.cell.styles.textColor = [139, 0, 0]; // Dark red text
+                  break;
+                case 'OT':
+                  data.cell.styles.fillColor = [255, 255, 150]; // Light yellow for Overtime
+                  data.cell.styles.textColor = [204, 153, 0]; // Dark yellow text
+                  break;
+                case 'L':
+                  data.cell.styles.fillColor = [173, 216, 230]; // Light blue for Leave
+                  data.cell.styles.textColor = [0, 0, 139]; // Dark blue text
+                  break;
+                case 'H':
+                  data.cell.styles.fillColor = [220, 220, 220]; // Light gray for Holiday
+                  data.cell.styles.textColor = [105, 105, 105]; // Dark gray text
+                  break;
+              }
             }
+
+            // Make SL.NO column bold
+            if (data.section === 'body' && data.column.index === 0) {
+              data.cell.styles.fontStyle = 'bold';
+            }
+
+            // Add borders to all cells
+            data.cell.styles.lineColor = [0, 0, 0];
+            data.cell.styles.lineWidth = 0.1;
+          },
+          didDrawPage: function(data: any) {
+            // Add page number
+            doc.setFontSize(8);
+            doc.text(
+              `Page ${data.pageNumber}`,
+              pageWidth - 20,
+              pageHeight - 10,
+              { align: 'right' }
+            );
           }
-        }
-      });
-      
+        });
+      } catch (tableError) {
+        console.error('Error generating PDF table:', tableError);
+        return res.status(500).json({ message: "Failed to generate PDF table" });
+      }
+
       // Generate PDF buffer
       const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
-      
+
       // Set response headers
+      const filename = `attendance_${monthNames[monthNum - 1]}_${yearNum}.pdf`;
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename="attendance_${monthNames[month - 1]}_${year}.pdf"`);
-      
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+
       res.send(pdfBuffer);
     } catch (error) {
       console.error('PDF export error:', error);
-      res.status(500).json({ message: "Failed to generate PDF export" });
+      res.status(500).json({
+        message: "Failed to generate PDF export",
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
     }
   });
 
