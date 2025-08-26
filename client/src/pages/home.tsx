@@ -1,0 +1,262 @@
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import type { Employee } from "@shared/schema";
+import EmployeeCard from "@/components/employee-card";
+import CreateEmployeeModal from "@/components/create-employee-modal";
+import ExportModal from "@/components/export-modal";
+import DeleteConfirmationModal from "@/components/delete-confirmation-modal";
+import { Building, Download, CalendarDays, Search, Plus, Bell, Settings } from "lucide-react";
+
+export default function Home() {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: employees = [], isLoading } = useQuery<Employee[]>({
+    queryKey: ["/api/employees"],
+  });
+
+  const deleteEmployeeMutation = useMutation({
+    mutationFn: async (id: string) => {
+      await apiRequest("DELETE", `/api/employees/${id}`);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      toast({
+        title: "Success",
+        description: "Employee deleted successfully",
+      });
+      setShowDeleteModal(false);
+      setSelectedEmployee(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete employee",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const filteredEmployees = employees.filter(emp =>
+    emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (emp.designation && emp.designation.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+
+  const handleDeleteEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (selectedEmployee) {
+      deleteEmployeeMutation.mutate(selectedEmployee.id);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-surface">
+      {/* Header */}
+      <header className="bg-white shadow-material sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <Building className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
+                  South Asia Consultancy
+                </h1>
+                <p className="text-xs text-gray-600">Attendance Management</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                data-testid="button-notifications"
+              >
+                <Bell className="w-5 h-5 text-gray-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                data-testid="button-settings"
+              >
+                <Settings className="w-5 h-5 text-gray-600" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Quick Actions */}
+        <div className="mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card 
+              className="hover:shadow-material-lg transition-shadow cursor-pointer"
+              onClick={() => setShowCreateModal(true)}
+              data-testid="card-add-employee"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center">
+                    <Plus className="w-6 h-6 text-primary" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-medium">Add Employee</h3>
+                    <p className="text-sm text-gray-600">Create new employee record</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Card 
+              className="hover:shadow-material-lg transition-shadow cursor-pointer"
+              onClick={() => setShowExportModal(true)}
+              data-testid="card-export-data"
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center">
+                  <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center">
+                    <Download className="w-6 h-6 text-secondary" />
+                  </div>
+                  <div className="ml-4">
+                    <h3 className="text-lg font-medium">Export Data</h3>
+                    <p className="text-sm text-gray-600">Generate XLSX or PDF reports</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+            
+            <Link href="/attendance">
+              <Card 
+                className="hover:shadow-material-lg transition-shadow cursor-pointer"
+                data-testid="card-view-attendance"
+              >
+                <CardContent className="p-6">
+                  <div className="flex items-center">
+                    <div className="w-12 h-12 bg-blue-500/10 rounded-full flex items-center justify-center">
+                      <CalendarDays className="w-6 h-6 text-blue-500" />
+                    </div>
+                    <div className="ml-4">
+                      <h3 className="text-lg font-medium">View Attendance</h3>
+                      <p className="text-sm text-gray-600">Monthly attendance overview</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </div>
+        </div>
+
+        {/* Employee List */}
+        <div className="mb-8">
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-medium" data-testid="text-employees-heading">Employees</h2>
+            <div className="flex items-center space-x-4">
+              <div className="relative">
+                <Input
+                  type="text"
+                  placeholder="Search employees..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 pr-4"
+                  data-testid="input-search-employees"
+                />
+                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
+              </div>
+              <Button 
+                onClick={() => setShowCreateModal(true)}
+                className="bg-primary hover:bg-primary-light text-white"
+                data-testid="button-add-employee"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Add Employee
+              </Button>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(6)].map((_, i) => (
+                <Card key={i} className="animate-pulse">
+                  <CardContent className="p-6">
+                    <div className="h-20 bg-gray-200 rounded"></div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : filteredEmployees.length === 0 ? (
+            <Card className="text-center py-12">
+              <CardContent>
+                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Building className="w-8 h-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium mb-2" data-testid="text-no-employees">
+                  {searchQuery ? "No employees found" : "No employees yet"}
+                </h3>
+                <p className="text-gray-600 mb-4">
+                  {searchQuery 
+                    ? "Try adjusting your search terms" 
+                    : "Start by adding your first employee to the system"
+                  }
+                </p>
+                {!searchQuery && (
+                  <Button onClick={() => setShowCreateModal(true)} data-testid="button-add-first-employee">
+                    Add Employee
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {filteredEmployees.map((employee) => (
+                <EmployeeCard
+                  key={employee.id}
+                  employee={employee}
+                  onDelete={() => handleDeleteEmployee(employee)}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Modals */}
+      <CreateEmployeeModal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+      />
+
+      <ExportModal
+        isOpen={showExportModal}
+        onClose={() => setShowExportModal(false)}
+      />
+
+      <DeleteConfirmationModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        employee={selectedEmployee}
+        onConfirm={confirmDelete}
+        isDeleting={deleteEmployeeMutation.isPending}
+      />
+    </div>
+  );
+}

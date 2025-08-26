@@ -1,0 +1,196 @@
+import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { X, Download, Info, Loader2 } from "lucide-react";
+
+interface ExportModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  defaultMonth?: string;
+  defaultYear?: string;
+}
+
+export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defaultYear = "2025" }: ExportModalProps) {
+  const [exportData, setExportData] = useState({
+    month: defaultMonth,
+    year: defaultYear,
+    format: "xlsx",
+  });
+  const { toast } = useToast();
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleExport = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`/api/export/${exportData.format}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          month: parseInt(exportData.month),
+          year: parseInt(exportData.year),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to export ${exportData.format.toUpperCase()}`);
+      }
+
+      // Handle file download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Get filename from response headers or create default
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `attendance_${exportData.month}_${exportData.year}.${exportData.format}`;
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
+        if (filenameMatch) {
+          filename = filenameMatch[1];
+        }
+      }
+      
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Success",
+        description: `${exportData.format.toUpperCase()} file downloaded successfully`,
+      });
+      
+      onClose();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || `Failed to export ${exportData.format.toUpperCase()}`,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="w-full max-w-md" data-testid="modal-export" aria-describedby="export-description">
+        <DialogHeader>
+          <DialogTitle>
+            Export Attendance
+          </DialogTitle>
+        </DialogHeader>
+        
+        <div id="export-description" className="sr-only">
+          Export attendance data for a specific month and year in XLSX or PDF format.
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-1">Month</Label>
+            <Select value={exportData.month} onValueChange={(value) => setExportData({ ...exportData, month: value })}>
+              <SelectTrigger data-testid="select-export-month">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {monthNames.map((month, index) => (
+                  <SelectItem key={index + 1} value={(index + 1).toString()}>
+                    {month}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-1">Year</Label>
+            <Select value={exportData.year} onValueChange={(value) => setExportData({ ...exportData, year: value })}>
+              <SelectTrigger data-testid="select-export-year">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="2024">2024</SelectItem>
+                <SelectItem value="2025">2025</SelectItem>
+                <SelectItem value="2026">2026</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2">Export Format</Label>
+            <RadioGroup 
+              value={exportData.format} 
+              onValueChange={(value) => setExportData({ ...exportData, format: value })}
+              className="space-y-2"
+              data-testid="radio-export-format"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="xlsx" id="xlsx" />
+                <Label htmlFor="xlsx" className="text-sm">Excel (XLSX)</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="pdf" id="pdf" />
+                <Label htmlFor="pdf" className="text-sm">PDF Document</Label>
+              </div>
+            </RadioGroup>
+          </div>
+          
+          <div className="bg-blue-50 p-3 rounded-lg">
+            <div className="flex items-start">
+              <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2" />
+              <div>
+                <p className="text-sm text-blue-800" data-testid="text-export-info">
+                  Export will include all employees with attendance grid for selected month/year.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end space-x-3 pt-4">
+            <Button 
+              variant="outline"
+              onClick={onClose}
+              data-testid="button-cancel-export"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleExport}
+              className="bg-secondary hover:bg-secondary-light text-white"
+              disabled={isLoading}
+              data-testid="button-generate-export"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Exporting...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export {exportData.format.toUpperCase()}
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
