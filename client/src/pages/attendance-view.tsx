@@ -89,12 +89,13 @@ export default function AttendanceView() {
   // Get unique designations for filter
   const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
 
-  // Filter employees by main designation filter (employees are already sorted by database)
+  // Filter employees by main designation filter while preserving database sort order
   const designationFilteredEmployees = selectedDesignation === "all" 
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Use the employees as they come from database (already sorted by designation_order, then name)
+  // Employees are already sorted by database (designation_order ASC, name ASC)
+  // No additional sorting needed - preserve the database order
   const sortedFilteredEmployees = designationFilteredEmployees;
 
   // Filter employees for modal by modal designation filter

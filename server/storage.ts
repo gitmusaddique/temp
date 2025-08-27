@@ -80,11 +80,11 @@ export class SqliteStorage implements IStorage {
       this.db.exec(`ALTER TABLE employees ADD COLUMN designation_order INTEGER DEFAULT 999;`);
       console.log('Added designation_order column to existing employees table');
       
-      // Update existing employees with proper designation order
+      // Update ALL existing employees with proper designation order (not just those with 999)
       const updateStmt = this.db.prepare(`
         UPDATE employees 
         SET designation_order = ? 
-        WHERE designation = ? AND designation_order = 999
+        WHERE designation = ?
       `);
       
       const designationNumbers: Record<string, number> = {
@@ -96,7 +96,8 @@ export class SqliteStorage implements IStorage {
       };
 
       for (const [designation, order] of Object.entries(designationNumbers)) {
-        updateStmt.run(order, designation);
+        const result = updateStmt.run(order, designation);
+        console.log(`Updated ${result.changes} employees with designation '${designation}' to order ${order}`);
       }
       
     } catch (error: any) {
