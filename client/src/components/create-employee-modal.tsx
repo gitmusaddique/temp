@@ -18,8 +18,26 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
   const [formData, setFormData] = useState({
     name: "",
     designation: "",
-    status: "Active" as "Active" | "Inactive",
+    designationOrder: 999,
+    status: "Active" as const,
   });
+
+  const getDesignationOrder = (designation: string): number => {
+    const designationNumbers: Record<string, number> = {
+      'rig ic': 1,
+      'shift ic': 2,
+      'ass shift ic': 3,
+      'asst shift ic': 3,
+      'assistant shift ic': 3,
+      'topman': 4,
+      'top man': 4,
+      'rigman': 5,
+      'rig man': 5
+    };
+
+    return designationNumbers[designation.toLowerCase().trim()] || 999;
+  };
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -59,7 +77,8 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length === 0) {
-      createEmployeeMutation.mutate(formData);
+      const designationOrder = getDesignationOrder(formData.designation);
+      createEmployeeMutation.mutate({ ...formData, designationOrder });
     }
   };
 
@@ -67,6 +86,7 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
     setFormData({
       name: "",
       designation: "",
+      designationOrder: 999,
       status: "Active",
     });
     setErrors({});
@@ -121,7 +141,9 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
             </Label>
             <Select
               value={formData.designation}
-              onValueChange={(value) => setFormData({ ...formData, designation: value })}
+              onValueChange={(value) => {
+                setFormData({ ...formData, designation: value });
+              }}
             >
               <SelectTrigger className={errors.designation ? "border-red-500" : ""} data-testid="select-employee-designation">
                 <SelectValue placeholder="Select designation" />

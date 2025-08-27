@@ -130,37 +130,15 @@ export default function AttendanceView() {
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Function to get designation number for sorting
-  const getDesignationNumber = (designation: string | null): number => {
-    if (!designation) return 999; // No designation goes to the end
-    
-    const designationLower = designation.toLowerCase().trim();
-    
-    // Core hierarchy mapping with unique numbers
-    const designationNumbers: Record<string, number> = {
-      'rig ic': 1,
-      'shift ic': 2,
-      'ass shift ic': 3,
-      'asst shift ic': 3,
-      'assistant shift ic': 3,
-      'topman': 4,
-      'top man': 4,
-      'rigman': 5,
-      'rig man': 5
-    };
-
-    return designationNumbers[designationLower] || 999;
-  };
-
-  // Sort employees by designation number first, then by name within each designation
+  // Sort employees by designation_order from database, then by name within each designation
   const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
-    // Get designation numbers for sorting
-    const aNumber = getDesignationNumber(a.designation);
-    const bNumber = getDesignationNumber(b.designation);
+    // Get designation order from database field (default to 999 if not set)
+    const aOrder = (a as any).designationOrder || 999;
+    const bOrder = (b as any).designationOrder || 999;
 
-    // First sort by designation number (lower number = higher priority)
-    if (aNumber !== bNumber) {
-      return aNumber - bNumber;
+    // First sort by designation order (lower number = higher priority)
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
     }
 
     // Within same designation, sort alphabetically by name

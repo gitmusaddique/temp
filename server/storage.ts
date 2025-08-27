@@ -18,14 +18,14 @@ export interface IStorage {
 }
 
 export class SqliteStorage implements IStorage {
-  private db: Database.Database;
+  private db: Database;
   private statements: any;
 
   constructor(dbPath: string = 'attendance.db') {
     // Create database in current directory or specified path
     const fullPath = path.resolve(dbPath);
     console.log('Initializing SQLite database at:', fullPath);
-    
+
     this.db = new Database(fullPath, { 
       verbose: console.log, // Optional: remove this to reduce logs
       fileMustExist: false
@@ -47,6 +47,7 @@ export class SqliteStorage implements IStorage {
         employee_id TEXT UNIQUE NOT NULL,
         name TEXT NOT NULL,
         designation TEXT,
+        designation_order INTEGER DEFAULT 999,
         department TEXT,
         status TEXT DEFAULT 'Active',
         serial_number INTEGER UNIQUE NOT NULL,
@@ -80,16 +81,17 @@ export class SqliteStorage implements IStorage {
       // Employee statements
       getEmployee: this.db.prepare('SELECT * FROM employees WHERE id = ?'),
       getEmployeeByEmployeeId: this.db.prepare('SELECT * FROM employees WHERE employee_id = ?'),
-      getAllEmployees: this.db.prepare('SELECT * FROM employees ORDER BY serial_number ASC'),
+      getAllEmployees: this.db.prepare('SELECT * FROM employees ORDER BY designation_order ASC, name ASC'),
       getMaxSerialNumber: this.db.prepare('SELECT MAX(serial_number) as max_serial FROM employees'),
       createEmployee: this.db.prepare(`
-        INSERT INTO employees (id, employee_id, name, designation, department, status, serial_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO employees (id, employee_id, name, designation, designation_order, department, status, serial_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `),
       updateEmployee: this.db.prepare(`
         UPDATE employees 
         SET name = COALESCE(?, name),
             designation = COALESCE(?, designation),
+            designation_order = COALESCE(?, designation_order),
             department = COALESCE(?, department),
             status = COALESCE(?, status),
             updated_at = CURRENT_TIMESTAMP
@@ -122,6 +124,22 @@ export class SqliteStorage implements IStorage {
     };
   }
 
+  private getDesignationOrder(designation: string): number {
+    const designationNumbers: Record<string, number> = {
+      'rig ic': 1,
+      'shift ic': 2,
+      'ass shift ic': 3,
+      'asst shift ic': 3,
+      'assistant shift ic': 3,
+      'topman': 4,
+      'top man': 4,
+      'rigman': 5,
+      'rig man': 5
+    };
+
+    return designationNumbers[designation.toLowerCase().trim()] || 999;
+  }
+
   // Employee operations
   async getEmployee(id: string): Promise<Employee | undefined> {
     const row = this.statements.getEmployee.get(id);
@@ -140,17 +158,21 @@ export class SqliteStorage implements IStorage {
 
   async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
     const id = randomUUID();
-    
+
     // Get next serial number
     const maxSerialResult = this.statements.getMaxSerialNumber.get();
     const nextSerial = (maxSerialResult.max_serial || 0) + 1;
     const employeeId = String(nextSerial).padStart(3, '0');
+
+    // Get designation order
+    const designationOrder = this.getDesignationOrder(insertEmployee.designation);
 
     this.statements.createEmployee.run(
       id,
       employeeId,
       insertEmployee.name,
       insertEmployee.designation || null,
+      designationOrder,
       insertEmployee.department || null,
       insertEmployee.status || "Active",
       nextSerial
@@ -161,6 +183,7 @@ export class SqliteStorage implements IStorage {
       employeeId,
       name: insertEmployee.name,
       designation: insertEmployee.designation || null,
+      designationOrder: designationOrder,
       department: insertEmployee.department || null,
       status: insertEmployee.status || "Active",
       serialNumber: nextSerial,
@@ -170,16 +193,26 @@ export class SqliteStorage implements IStorage {
   }
 
   async updateEmployee(id: string, updateData: Partial<InsertEmployee>): Promise<Employee | undefined> {
+    const existing = await this.getEmployee(id);
+    if (!existing) return undefined;
+
+    let designationOrder = existing.designationOrder;
+    // If designation is being updated, recalculate designation_order
+    if (updateData.designation && updateData.designation !== existing.designation) {
+      designationOrder = this.getDesignationOrder(updateData.designation);
+    }
+
     const result = this.statements.updateEmployee.run(
       updateData.name || null,
       updateData.designation || null,
+      designationOrder || null,
       updateData.department || null,
       updateData.status || null,
       id
     );
 
     if (result.changes === 0) return undefined;
-    
+
     return this.getEmployee(id);
   }
 
@@ -231,6 +264,7 @@ export class SqliteStorage implements IStorage {
       employeeId: row.employee_id,
       name: row.name,
       designation: row.designation,
+      designationOrder: row.designation_order,
       department: row.department,
       status: row.status,
       serialNumber: row.serial_number,

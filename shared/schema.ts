@@ -8,6 +8,7 @@ export const employees = pgTable("employees", {
   employeeId: text("employee_id").notNull().unique(),
   name: text("name").notNull(),
   designation: text("designation").notNull(),
+  designationOrder: integer("designation_order").notNull().default(999),
   status: text("status").notNull().default("Active"),
   serialNumber: integer("serial_number").notNull(),
 });
@@ -15,10 +16,12 @@ export const employees = pgTable("employees", {
 export const insertEmployeeSchema = createInsertSchema(employees).pick({
   name: true,
   designation: true,
+  designationOrder: true,
   status: true,
 }).extend({
   name: z.string().min(1, "Name is required"),
   designation: z.string().min(1, "Designation is required"),
+  designationOrder: z.number().min(1).default(999),
   status: z.enum(["Active", "Inactive"]).default("Active"),
 });
 
