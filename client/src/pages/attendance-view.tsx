@@ -630,8 +630,8 @@ export default function AttendanceView() {
                           </td>
                           <td className={`px-4 py-2 text-sm border-r font-medium capitalize ${
                             employee.isActive 
-                              ? 'text-green-600 bg-green-50' 
-                              : 'text-red-600 bg-red-50'
+                              ? 'text-green-600' 
+                              : 'text-red-600'
                           }`} data-testid={`text-status-${employee.id}`}>
                             {employee.isActive ? 'Active' : 'Inactive'}
                           </td>
