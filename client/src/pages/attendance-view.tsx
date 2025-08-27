@@ -342,87 +342,79 @@ export default function AttendanceView() {
         </div>
       </div>
 
-      {/* Employee Selection Panel */}
-      {!showAllEmployees && showSelectionPanel && (
-        <div className="max-w-full mx-auto px-4 py-4">
-          <Card className="mb-6">
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setShowSelectionPanel(false)}
-                  className="h-8 w-8 p-0"
-                  data-testid="button-close-selection-panel"
+      {/* Employee Selection Modal */}
+      <Dialog open={!showAllEmployees && showSelectionPanel} onOpenChange={(open) => !open && setShowSelectionPanel(false)}>
+        <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby="employee-selection-description">
+          <DialogHeader>
+            <DialogTitle>Select Employees for Attendance</DialogTitle>
+          </DialogHeader>
+          
+          <div id="employee-selection-description" className="sr-only">
+            Select employees to include in the attendance view
+          </div>
+          
+          <div className="flex flex-col space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
+              {designationFilteredEmployees.map(employee => (
+                <div 
+                  key={employee.id}
+                  className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                    selectedEmployees.has(employee.id)
+                      ? "border-blue-500 bg-blue-50 text-blue-900"
+                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                  }`}
+                  onClick={() => toggleEmployeeSelection(employee.id)}
+                  data-testid={`employee-selection-${employee.id}`}
                 >
-                  <X className="h-4 w-4" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-sm">{employee.name}</p>
+                      <p className="text-xs text-gray-600">{employee.designation || "No designation"}</p>
+                    </div>
+                    {selectedEmployees.has(employee.id) && (
+                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-xs">✓</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {designationFilteredEmployees.length === 0 && (
+              <p className="text-center text-gray-500 py-8">
+                No employees found for the selected designation filter.
+              </p>
+            )}
+            
+            <div className="flex items-center justify-between pt-4 border-t">
+              <p className="text-sm text-gray-600">
+                {selectedEmployees.size} employee(s) selected
+              </p>
+              <div className="space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)))}
+                  data-testid="button-select-all-filtered"
+                  className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-3 py-1"
+                >
+                  Select All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectedEmployees(new Set())}
+                  data-testid="button-clear-all-selections"
+                  className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium px-3 py-1"
+                >
+                  Clear All
                 </Button>
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
-                {designationFilteredEmployees.map(employee => (
-                  <div 
-                    key={employee.id}
-                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                      selectedEmployees.has(employee.id)
-                        ? "border-blue-500 bg-blue-50 text-blue-900"
-                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                    }`}
-                    onClick={() => toggleEmployeeSelection(employee.id)}
-                    data-testid={`employee-selection-${employee.id}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-sm">{employee.name}</p>
-                        <p className="text-xs text-gray-600">{employee.designation || "No designation"}</p>
-                      </div>
-                      {selectedEmployees.has(employee.id) && (
-                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-xs">✓</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              {designationFilteredEmployees.length === 0 && (
-                <p className="text-center text-gray-500 py-8">
-                  No employees found for the selected designation filter.
-                </p>
-              )}
-              
-              <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-gray-600">
-                  {selectedEmployees.size} employee(s) selected
-                </p>
-                <div className="space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)))}
-                    data-testid="button-select-all-filtered"
-                    className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-3 py-1"
-                  >
-                    Select All
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setSelectedEmployees(new Set())}
-                    data-testid="button-clear-all-selections"
-                    className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium px-3 py-1"
-                  >
-                    Clear All
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Attendance Table */}
       <div className="max-w-full mx-auto px-4 py-8">
