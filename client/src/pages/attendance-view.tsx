@@ -318,8 +318,7 @@ export default function AttendanceView() {
                       setShowAllEmployees(false);
                       setShowSelectionPanel(true);
                     } else {
-                      setShowAllEmployees(true);
-                      setShowSelectionPanel(false);
+                      setShowSelectionPanel(true);
                     }
                   }}
                   data-testid="button-toggle-employee-view"
