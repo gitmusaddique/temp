@@ -342,7 +342,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         };
 
         // Apply base style to all cells
-        cell.style = baseStyle;
+        cell.style = { ...baseStyle };
 
         // Ensure blank cells have white background
         if (cell.value === '' || cell.value === null || cell.value === undefined) {
@@ -360,31 +360,31 @@ app.post("/api/export/xlsx", async (req, res) => {
             switch(cellValue.toString().trim()) {
               case 'P':
                 cell.style = {
-                  ...cell.style,
+                  ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6FFE6' } } // Light green
                 };
                 break;
               case 'A':
                 cell.style = {
-                  ...cell.style,
+                  ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE6E6' } } // Light red
                 };
                 break;
               case 'OT':
                 cell.style = {
-                  ...cell.style,
+                  ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFEF7' } } // Very light yellowish
                 };
                 break;
               case 'L':
                 cell.style = {
-                  ...cell.style,
+                  ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FF' } } // Light blue
                 };
                 break;
               case 'H':
                 cell.style = {
-                  ...cell.style,
+                  ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } } // Light gray
                 };
                 break;
