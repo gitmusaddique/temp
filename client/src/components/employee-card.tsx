@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
@@ -24,6 +23,7 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
   const [formData, setFormData] = useState({
     name: employee.name,
     designation: employee.designation,
+    status: employee.status,
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
@@ -76,6 +76,9 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
     if (!formData.designation.trim()) {
       newErrors.designation = "Designation is required";
     }
+    if (!formData.status.trim()) {
+      newErrors.status = "Status is required";
+    }
 
     setErrors(newErrors);
 
@@ -88,6 +91,7 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
     setFormData({
       name: employee.name,
       designation: employee.designation,
+      status: employee.status,
     });
     setErrors({});
     setShowEditModal(true);
@@ -111,6 +115,9 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
                 </Badge>
                 <p className="text-sm text-gray-600 mt-1">
                   ID: {employee.employeeId}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">
+                  Status: {employee.status}
                 </p>
               </div>
             </div>
@@ -184,6 +191,27 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
               </Select>
               {errors.designation && (
                 <p className="text-sm text-red-600 mt-1">{errors.designation}</p>
+              )}
+            </div>
+
+            <div>
+              <Label htmlFor="edit-status" className="text-sm font-medium">
+                Status *
+              </Label>
+              <Select
+                value={formData.status}
+                onValueChange={(value) => setFormData({ ...formData, status: value })}
+              >
+                <SelectTrigger className={errors.status ? "border-red-500" : ""} data-testid="select-edit-employee-status">
+                  <SelectValue placeholder="Select status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
+              {errors.status && (
+                <p className="text-sm text-red-600 mt-1">{errors.status}</p>
               )}
             </div>
 
