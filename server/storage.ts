@@ -151,7 +151,7 @@ export class SqliteStorage implements IStorage {
         FROM attendance_records ar
         LEFT JOIN employees e ON ar.employee_id = e.id
         WHERE ar.month = ? AND ar.year = ?
-        ORDER BY e.serial_number ASC
+        ORDER BY e.designation_order ASC, e.name ASC
       `)
     };
   }

@@ -86,27 +86,23 @@ export default function AttendanceView() {
   const daysInMonth = getDaysInMonth(parseInt(selectedMonth), parseInt(selectedYear));
   const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  // Get unique designations for filter
+  // Get unique designations for filter (employees are already sorted by designation_order)
   const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
 
-  // Filter employees by main designation filter while preserving database sort order
-  const designationFilteredEmployees = selectedDesignation === "all" 
+  // Filter employees by designation while preserving database sort order
+  const filteredEmployees = selectedDesignation === "all" 
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Employees are already sorted by database (designation_order ASC, name ASC)
-  // No additional sorting needed - preserve the database order
-  const sortedFilteredEmployees = designationFilteredEmployees;
-
   // Filter employees for modal by modal designation filter
   const modalFilteredEmployees = modalDesignationFilter === "all" 
-    ? sortedFilteredEmployees 
-    : sortedFilteredEmployees.filter(emp => emp.designation === modalDesignationFilter);
+    ? filteredEmployees 
+    : filteredEmployees.filter(emp => emp.designation === modalDesignationFilter);
 
-  // Then filter by selection if not showing all
+  // Final display employees - filtered by selection if not showing all
   const displayEmployees = showAllEmployees 
-    ? sortedFilteredEmployees
-    : sortedFilteredEmployees.filter(emp => selectedEmployees.has(emp.id));
+    ? filteredEmployees
+    : filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
 
 
 
@@ -114,10 +110,10 @@ export default function AttendanceView() {
   React.useEffect(() => {
     if (selectedDesignation !== "all") {
       // Clear selections that are no longer in the filtered list
-      const filteredIds = new Set(sortedFilteredEmployees.map(emp => emp.id));
+      const filteredIds = new Set(filteredEmployees.map(emp => emp.id));
       setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
     }
-  }, [selectedDesignation, sortedFilteredEmployees]);
+  }, [selectedDesignation, filteredEmployees]);
 
   // Reset modal designation filter when main designation changes
   React.useEffect(() => {
@@ -294,7 +290,7 @@ export default function AttendanceView() {
                 </p>
                 {!showAllEmployees && (
                   <p className="text-xs text-blue-600" data-testid="text-selection-status">
-                    {selectedEmployees.size} of {sortedFilteredEmployees.length} employees selected
+                    {selectedEmployees.size} of {filteredEmployees.length} employees selected
                   </p>
                 )}
               </div>
@@ -377,7 +373,7 @@ export default function AttendanceView() {
                   <SelectContent>
                     <SelectItem value="all">All Designations</SelectItem>
                     {uniqueDesignations.filter(designation => 
-                      sortedFilteredEmployees.some(emp => emp.designation === designation)
+                      filteredEmployees.some(emp => emp.designation === designation)
                     ).map(designation => (
                       <SelectItem key={designation} value={designation}>
                         {designation}
@@ -422,7 +418,7 @@ export default function AttendanceView() {
 
             <div className="flex items-center justify-between pt-4 border-t">
               <p className="text-sm text-gray-600">
-                {selectedEmployees.size} of {sortedFilteredEmployees.length} employee(s) selected
+                {selectedEmployees.size} of {filteredEmployees.length} employee(s) selected
                 {modalDesignationFilter !== "all" && (
                   <span className="text-gray-500"> • Showing {modalFilteredEmployees.length} for {modalDesignationFilter}</span>
                 )}
@@ -530,7 +526,7 @@ export default function AttendanceView() {
                     <tr>
                       <td colSpan={dayColumns.length + 6} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
                         {employees.length === 0 ? "No employees found. Add employees to view attendance." : 
-                         sortedFilteredEmployees.length === 0 ? "No employees match the selected designation." :
+                         filteredEmployees.length === 0 ? "No employees match the selected designation." :
                          showAllEmployees ? "No employees match the selected designation." : 
                          "No employees selected. Use the employee selection panel above to select employees."}
                       </td>
