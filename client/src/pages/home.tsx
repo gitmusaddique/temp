@@ -12,7 +12,8 @@ import EmployeeCard from "@/components/employee-card";
 import CreateEmployeeModal from "@/components/create-employee-modal";
 import ExportModal from "@/components/export-modal";
 import DeleteConfirmationModal from "@/components/delete-confirmation-modal";
-import { Building, Download, CalendarDays, Search, Plus, Bell, Settings } from "lucide-react";
+import EditEmployeeModal from "@/components/edit-employee-modal";
+import { Building, Download, CalendarDays, Search, Plus, Bell, Settings, User, Pencil, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -29,6 +30,7 @@ export default function Home() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
+  const [showEditModal, setShowEditModal] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -226,13 +228,13 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="max-h-[calc(100vh-400px)] overflow-y-auto">
+          <div className={filteredEmployees.length > 10 ? "max-h-[calc(100vh-400px)] overflow-y-auto" : ""}>
             {isLoading ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="space-y-2">
                 {[...Array(6)].map((_, i) => (
                   <Card key={i} className="animate-pulse">
-                    <CardContent className="p-6">
-                      <div className="h-20 bg-gray-200 rounded"></div>
+                    <CardContent className="p-4">
+                      <div className="h-16 bg-gray-200 rounded"></div>
                     </CardContent>
                   </Card>
                 ))}
@@ -260,13 +262,62 @@ export default function Home() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
+              <div className="space-y-2">
                 {filteredEmployees.map((employee) => (
-                  <EmployeeCard
-                    key={employee.id}
-                    employee={employee}
-                    onDelete={() => handleDeleteEmployee(employee)}
-                  />
+                  <Card key={employee.id} className="hover:shadow-md transition-shadow" data-testid={`employee-card-${employee.id}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between w-full">
+                        <div className="flex items-center space-x-4 flex-1">
+                          <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
+                            <User className="w-5 h-5 text-primary" />
+                          </div>
+                          <div className="flex items-center space-x-8 flex-1">
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-medium text-base truncate" data-testid={`employee-name-${employee.id}`}>
+                                {employee.name}
+                              </h3>
+                              <p className="text-sm text-gray-600 truncate">
+                                ID: {employee.employeeId}
+                              </p>
+                            </div>
+                            <div className="flex-shrink-0">
+                              <Badge variant="secondary" className="text-sm" data-testid={`employee-designation-${employee.id}`}>
+                                {employee.designation}
+                              </Badge>
+                            </div>
+                            <div className="flex-shrink-0">
+                              <span className={`text-sm font-medium px-2 py-1 rounded-full ${employee.status === 'Active' ? 'text-green-700 bg-green-100' : 'text-red-700 bg-red-100'}`}>
+                                {employee.status}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2 ml-4">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                              setSelectedEmployee(employee);
+                              setShowEditModal(true);
+                            }}
+                            data-testid={`button-edit-${employee.id}`}
+                            className="h-8 w-8"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDeleteEmployee(employee)}
+                            data-testid={`button-delete-${employee.id}`}
+                            className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             )}
@@ -291,6 +342,12 @@ export default function Home() {
         employee={selectedEmployee}
         onConfirm={confirmDelete}
         isDeleting={deleteEmployeeMutation.isPending}
+      />
+
+      <EditEmployeeModal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        employee={selectedEmployee}
       />
     </div>
   );
