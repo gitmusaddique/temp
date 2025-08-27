@@ -93,6 +93,17 @@ export class SqliteStorage implements IStorage {
     `);
     defaultSettings.run();
 
+    // Migration: Update existing "Siddik" records to "Company Name"
+    const migrateSiddik = this.db.prepare(`
+      UPDATE app_settings 
+      SET company_name = 'Company Name', updated_at = CURRENT_TIMESTAMP 
+      WHERE company_name = 'Siddik'
+    `);
+    const migrateResult = migrateSiddik.run();
+    if (migrateResult.changes > 0) {
+      console.log(`Migrated ${migrateResult.changes} settings records from "Siddik" to "Company Name"`);
+    }
+
     // Migration: Add designation_order column if it doesn't exist
     try {
       this.db.exec(`ALTER TABLE employees ADD COLUMN designation_order INTEGER DEFAULT 999;`);

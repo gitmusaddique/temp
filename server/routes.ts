@@ -177,6 +177,11 @@ app.post("/api/export/xlsx", async (req, res) => {
 
     // Get settings for export headers
     const appSettings = await storage.getSettings();
+    
+    // Ensure no legacy "Siddik" values are used
+    if (appSettings.companyName === 'Siddik') {
+      appSettings.companyName = 'Company Name';
+    }
 
     // Create new workbook and worksheet
     const workbook = new ExcelJS.Workbook();
