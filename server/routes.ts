@@ -133,13 +133,17 @@ app.post("/api/export/xlsx", async (req, res) => {
     let employees = await storage.getAllEmployees();
     const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
 
-    // Filter employees if selectedEmployees array is provided
+    // Filter employees if selectedEmployees array is provided AND filter out inactive employees
     if (selectedEmployees && Array.isArray(selectedEmployees) && selectedEmployees.length > 0) {
-      employees = employees.filter(emp => selectedEmployees.includes(emp.id));
+      employees = employees.filter(emp => selectedEmployees.includes(emp.id) && emp.status !== 'Inactive');
+    } else {
+      // If no specific employees selected, filter out inactive ones by default
+      employees = employees.filter(emp => emp.status !== 'Inactive');
     }
 
+
     if (!employees || employees.length === 0) {
-      return res.status(404).json({ message: "No employees found" });
+      return res.status(404).json({ message: "No employees found for the selected criteria" });
     }
 
     const monthNames = [
@@ -157,11 +161,11 @@ app.post("/api/export/xlsx", async (req, res) => {
     // Prepare headers
     const headers = [
       "SL.NO",
-      "NAME", 
+      "NAME",
       "DESIGNATION",
       ...dayColumns.map(day => day.toString()),
       "T/ON DUTY",
-      "OT DAYS", 
+      "OT DAYS",
       "REMARKS"
     ];
 
@@ -232,7 +236,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       };
     });
 
-    // Add employee data
+    // Fill employee data
     employees.forEach((employee, index) => {
       const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
       let attendanceData: Record<string, string> = {};
@@ -253,46 +257,45 @@ app.post("/api/export/xlsx", async (req, res) => {
       const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
       const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
 
-      const rowData = [
-        index + 1,
-        employee.name || '',
-        employee.designation || ''
-      ];
+      const rowIndex = index + 5; // Starting from row 5 (after header rows)
+      const row = worksheet.getRow(rowIndex);
+
+      row.getCell(1).value = index + 1; // Use sequential numbering based on filtered list
+      row.getCell(2).value = employee.name || '';
+      row.getCell(3).value = employee.designation || '';
 
       // Add day columns - only add actual values, skip completely for blank
       dayColumns.forEach(day => {
         const status = attendanceData[day.toString()];
         // Check if it's truly blank/empty
-        const isBlank = !status || 
-                       status === '' || 
-                       status === null || 
-                       status === undefined || 
+        const isBlank = !status ||
+                       status === '' ||
+                       status === null ||
+                       status === undefined ||
                        status.toString().trim() === '' ||
                        status.toString().toLowerCase() === 'blank';
 
         if (isBlank) {
-          rowData.push(''); // Push empty string which ExcelJS will treat as empty
+          row.getCell(4 + dayColumns.indexOf(day)).value = ''; // Push empty string which ExcelJS will treat as empty
         } else {
           switch(status) {
-            case 'P': case 'Present': rowData.push('P'); break;
-            case 'A': case 'Absent': rowData.push('A'); break;
-            case 'OT': case 'Overtime': rowData.push('OT'); break;
-            case 'L': case 'Leave': rowData.push('L'); break;
-            case 'H': case 'Holiday': rowData.push('H'); break;
-            default: rowData.push(status);
+            case 'P': case 'Present': row.getCell(4 + dayColumns.indexOf(day)).value = 'P'; break;
+            case 'A': case 'Absent': row.getCell(4 + dayColumns.indexOf(day)).value = 'A'; break;
+            case 'OT': case 'Overtime': row.getCell(4 + dayColumns.indexOf(day)).value = 'OT'; break;
+            case 'L': case 'Leave': row.getCell(4 + dayColumns.indexOf(day)).value = 'L'; break;
+            case 'H': case 'Holiday': row.getCell(4 + dayColumns.indexOf(day)).value = 'H'; break;
+            default: row.getCell(4 + dayColumns.indexOf(day)).value = status;
           }
         }
       });
 
       // Add summary columns
-      rowData.push(presentDays);
-      rowData.push(otDays);
-      rowData.push(attendanceRecord?.remarks || '');
-
-      const dataRow = worksheet.addRow(rowData);
+      row.getCell(4 + daysInMonth).value = presentDays;
+      row.getCell(4 + daysInMonth + 1).value = otDays;
+      row.getCell(4 + daysInMonth + 2).value = attendanceRecord?.remarks || '';
 
       // Style each cell in the data row
-      dataRow.eachCell((cell, colNumber) => {
+      row.eachCell((cell, colNumber) => {
         // Base style for all cells (including empty ones)
         const baseStyle = {
           alignment: { horizontal: 'center', vertical: 'middle' },
@@ -427,13 +430,16 @@ app.post("/api/export/xlsx", async (req, res) => {
       let employees = await storage.getAllEmployees();
       const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
 
-      // Filter employees if selectedEmployees array is provided
+      // Filter employees if selectedEmployees array is provided AND filter out inactive employees
       if (selectedEmployees && Array.isArray(selectedEmployees) && selectedEmployees.length > 0) {
-        employees = employees.filter(emp => selectedEmployees.includes(emp.id));
+        employees = employees.filter(emp => selectedEmployees.includes(emp.id) && emp.status !== 'Inactive');
+      } else {
+        // If no specific employees selected, filter out inactive ones by default
+        employees = employees.filter(emp => emp.status !== 'Inactive');
       }
 
       if (!employees || employees.length === 0) {
-        return res.status(404).json({ message: "No employees found" });
+        return res.status(404).json({ message: "No employees found for the selected criteria" });
       }
 
       const monthNames = [
@@ -511,7 +517,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
 
         return [
-          index + 1,
+          index + 1, // Use sequential numbering based on filtered list
           (employee.name || '').substring(0, 15),
           (employee.designation || '').substring(0, 12),
           ...dayColumns.map(day => {
