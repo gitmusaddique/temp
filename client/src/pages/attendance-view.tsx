@@ -466,16 +466,30 @@ export default function AttendanceView() {
                           </td>
                           {dayColumns.map(day => {
                             const status = getAttendanceStatus(employee.id, day);
+                            const isEmployeeSelected = showAllEmployees || selectedEmployees.has(employee.id);
                             return (
                               <td 
                                 key={day} 
-                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer hover:bg-blue-50 ${
-                                  status === "P" ? "bg-green-50 text-green-700" : 
-                                  status === "A" ? "bg-red-50 text-red-700" : 
-                                  status === "OT" ? "bg-yellow-50 text-yellow-800" : "hover:bg-gray-100"
+                                className={`px-1 py-2 text-center text-xs border-r ${
+                                  isEmployeeSelected 
+                                    ? `cursor-pointer hover:bg-blue-50 ${
+                                        status === "P" ? "bg-green-50 text-green-700" : 
+                                        status === "A" ? "bg-red-50 text-red-700" : 
+                                        status === "OT" ? "bg-yellow-50 text-yellow-800" : "hover:bg-gray-100"
+                                      }`
+                                    : `cursor-not-allowed bg-gray-100 text-gray-400 ${
+                                        status === "P" ? "bg-green-100 text-green-400" : 
+                                        status === "A" ? "bg-red-100 text-red-400" : 
+                                        status === "OT" ? "bg-yellow-100 text-yellow-400" : ""
+                                      }`
                                 }`}
-                                onClick={() => setSelectedCell({ employeeId: employee.id, day, currentStatus: status })}
+                                onClick={() => {
+                                  if (isEmployeeSelected) {
+                                    setSelectedCell({ employeeId: employee.id, day, currentStatus: status });
+                                  }
+                                }}
                                 data-testid={`cell-attendance-${employee.id}-${day}`}
+                                title={isEmployeeSelected ? "Click to edit attendance" : "Select employee to edit attendance"}
                               >
                                 {status}
                               </td>
@@ -499,8 +513,13 @@ export default function AttendanceView() {
                                 }));
                                 debouncedUpdateRemarks(employee.id, newValue);
                               }}
-                              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              placeholder="Add remarks..."
+                              disabled={!showAllEmployees && !selectedEmployees.has(employee.id)}
+                              className={`w-full px-2 py-1 text-xs border rounded focus:outline-none ${
+                                !showAllEmployees && !selectedEmployees.has(employee.id)
+                                  ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
+                                  : "border-gray-200 focus:ring-1 focus:ring-blue-500"
+                              }`}
+                              placeholder={(!showAllEmployees && !selectedEmployees.has(employee.id)) ? "Select employee to edit" : "Add remarks..."}
                               data-testid={`input-remarks-${employee.id}`}
                             />
                           </td>
