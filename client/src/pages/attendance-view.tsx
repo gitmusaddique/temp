@@ -336,9 +336,9 @@ export default function AttendanceView() {
                     variant="outline"
                     onClick={() => setHideSelectionPanel(false)}
                     data-testid="button-show-selection-panel"
-                    className="bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 hover:border-green-700 font-medium px-4 py-2"
+                    className="bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 hover:border-green-700 font-medium px-3 py-2"
                   >
-                    Show Selection Panel ({selectedEmployees.size} selected)
+                    Select ({selectedEmployees.size})
                   </Button>
                 )}
                 
