@@ -474,7 +474,26 @@ export default function AttendanceView() {
           </CardHeader>
           
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
+            {/* Designation Filter */}
+            <div className="p-4 border-b bg-gray-50">
+              <div className="flex items-center space-x-4">
+                <label className="text-sm font-medium text-gray-700">Filter by Designation:</label>
+                <Select value={selectedDesignation} onValueChange={setSelectedDesignation}>
+                  <SelectTrigger className="w-48" data-testid="select-designation-filter">
+                    <SelectValue placeholder="Filter by designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Designations</SelectItem>
+                    {uniqueDesignations.map(designation => (
+                      <SelectItem key={designation} value={designation}>
+                        {designation}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="overflow-x-auto"></div>
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
