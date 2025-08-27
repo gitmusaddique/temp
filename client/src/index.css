@@ -145,15 +145,7 @@
   }
 
   .btn-outline {
-    background-color: #ef4444 !important;
-    color: white !important;
-    border: 2px solid #ef4444 !important;
     font-weight: 500 !important;
-  }
-
-  .btn-outline:hover {
-    background-color: #dc2626 !important;
-    border-color: #dc2626 !important;
   }
 
   .btn-destructive {
