@@ -75,7 +75,7 @@ export class SqliteStorage implements IStorage {
 
       CREATE TABLE IF NOT EXISTS app_settings (
         id TEXT PRIMARY KEY DEFAULT 'default',
-        company_name TEXT NOT NULL DEFAULT 'Siddik',
+        company_name TEXT NOT NULL DEFAULT 'Company Name',
         rig_name TEXT NOT NULL DEFAULT 'ROM-100-II',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -89,7 +89,7 @@ export class SqliteStorage implements IStorage {
     // Initialize default settings if they don't exist
     const defaultSettings = this.db.prepare(`
       INSERT OR IGNORE INTO app_settings (id, company_name, rig_name)
-      VALUES ('default', 'Siddik', 'ROM-100-II')
+      VALUES ('default', 'Company Name', 'ROM-100-II')
     `);
     defaultSettings.run();
 
@@ -290,7 +290,7 @@ export class SqliteStorage implements IStorage {
       WHERE id = 'default'
     `).get() as { companyName: string; rigName: string } | undefined;
 
-    return settings || { companyName: 'Siddik', rigName: 'ROM-100-II' };
+    return settings || { companyName: 'Company Name', rigName: 'ROM-100-II' };
   }
 
   async updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }> {

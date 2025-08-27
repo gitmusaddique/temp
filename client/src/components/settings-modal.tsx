@@ -33,7 +33,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
   // Update local state when settings are fetched
   useEffect(() => {
     if (settingsData) {
-      setCompanyName(settingsData.companyName || "Siddik");
+      setCompanyName(settingsData.companyName || "Company Name");
       setRigName(settingsData.rigName || "ROM-100-II");
     }
   }, [settingsData]);
@@ -91,11 +91,11 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
   const handleReset = () => {
     // Reset to current database values
     if (settingsData) {
-      setCompanyName(settingsData.companyName || "Siddik");
+      setCompanyName(settingsData.companyName || "Company Name");
       setRigName(settingsData.rigName || "ROM-100-II");
     } else {
       // Fallback to defaults if no data
-      setCompanyName("Siddik");
+      setCompanyName("Company Name");
       setRigName("ROM-100-II");
     }
   };
