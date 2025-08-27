@@ -36,6 +36,7 @@ export default function AttendanceView() {
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
+  const [modalStatusFilter, setModalStatusFilter] = useState("all"); // Added for status filtering in modal
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -97,14 +98,17 @@ export default function AttendanceView() {
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Filter employees for modal by modal designation filter
-  const modalFilteredEmployees = modalDesignationFilter === "all" 
+  // Filter employees for modal by modal designation filter AND status
+  const modalFilteredEmployees = modalDesignationFilter === "all" && modalStatusFilter === "all"
     ? filteredEmployees 
-    : filteredEmployees.filter(emp => emp.designation === modalDesignationFilter);
+    : filteredEmployees.filter(emp => 
+        (modalDesignationFilter === "all" || emp.designation === modalDesignationFilter) &&
+        (modalStatusFilter === "all" || (modalStatusFilter === "active" ? emp.isActive : !emp.isActive))
+      );
 
   // Final display employees - already sorted by database (designation_order ASC, name ASC)
   const displayEmployees = showAllEmployees 
-    ? filteredEmployees
+    ? filteredEmployees.filter(emp => emp.isActive) // Only show active employees by default
     : filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
 
 
@@ -121,6 +125,7 @@ export default function AttendanceView() {
   // Reset modal designation filter when main designation changes
   React.useEffect(() => {
     setModalDesignationFilter("all");
+    setModalStatusFilter("all"); // Reset status filter as well
   }, [selectedDesignation]);
 
   // Toggle individual employee selection
@@ -365,8 +370,8 @@ export default function AttendanceView() {
           </div>
 
           <div className="flex flex-col space-y-4">
-            {/* Designation Filter for Modal */}
-            <div className="pb-4 border-b">
+            {/* Designation and Status Filters for Modal */}
+            <div className="pb-4 border-b flex justify-between items-center">
               <div className="flex items-center space-x-4">
                 <label className="text-sm font-medium text-gray-700">Filter by Designation:</label>
                 <Select value={modalDesignationFilter} onValueChange={setModalDesignationFilter}>
@@ -382,6 +387,19 @@ export default function AttendanceView() {
                         {designation}
                       </SelectItem>
                     ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex items-center space-x-4">
+                <label className="text-sm font-medium text-gray-700">Filter by Status:</label>
+                <Select value={modalStatusFilter} onValueChange={setModalStatusFilter}>
+                  <SelectTrigger className="w-32" data-testid="select-modal-status-filter">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="inactive">Inactive</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -402,6 +420,9 @@ export default function AttendanceView() {
                     <div>
                       <p className="font-medium text-sm">{employee.name}</p>
                       <p className="text-xs text-gray-600">{employee.designation || "No designation"}</p>
+                      <p className={`text-xs ${employee.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                        {employee.isActive ? 'Active' : 'Inactive'}
+                      </p>
                     </div>
                     {selectedEmployees.has(employee.id) && (
                       <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
@@ -422,8 +443,8 @@ export default function AttendanceView() {
             <div className="flex items-center justify-between pt-4 border-t">
               <p className="text-sm text-gray-600">
                 {selectedEmployees.size} of {filteredEmployees.length} employee(s) selected
-                {modalDesignationFilter !== "all" && (
-                  <span className="text-gray-500"> • Showing {modalFilteredEmployees.length} for {modalDesignationFilter}</span>
+                {(modalDesignationFilter !== "all" || modalStatusFilter !== "all") && (
+                  <span className="text-gray-500"> • Showing {modalFilteredEmployees.length} for current filters</span>
                 )}
               </p>
               <div className="space-x-2">
@@ -508,6 +529,9 @@ export default function AttendanceView() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border-r" data-testid="header-designation">
                       DESIGNATION
                     </th>
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase border-r" data-testid="header-status">
+                      STATUS
+                    </th>
                     {dayColumns.map(day => (
                       <th key={day} className="px-1 py-2 text-center text-xs font-medium text-gray-500 border-r w-8" data-testid={`header-day-${day}`}>
                         {day}
@@ -527,10 +551,10 @@ export default function AttendanceView() {
                 <tbody className="divide-y divide-gray-200">
                   {displayEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={dayColumns.length + 6} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
+                      <td colSpan={dayColumns.length + 7} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
                         {employees.length === 0 ? "No employees found. Add employees to view attendance." : 
                          filteredEmployees.length === 0 ? "No employees match the selected designation." :
-                         showAllEmployees ? "No employees match the selected designation." : 
+                         showAllEmployees ? "No active employees found for the selected designation." : 
                          "No employees selected. Use the employee selection panel above to select employees."}
                       </td>
                     </tr>
@@ -549,6 +573,9 @@ export default function AttendanceView() {
                           </td>
                           <td className="px-4 py-2 text-sm border-r" data-testid={`text-designation-${employee.id}`}>
                             {employee.designation || "-"}
+                          </td>
+                          <td className="px-4 py-2 text-sm border-r font-medium capitalize" data-testid={`text-status-${employee.id}`}>
+                            {employee.isActive ? 'Active' : 'Inactive'}
                           </td>
                           {dayColumns.map(day => {
                             const status = getAttendanceStatus(employee.id, day);

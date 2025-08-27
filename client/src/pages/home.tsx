@@ -23,7 +23,8 @@ import {
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedDesignation, setSelectedDesignation] = useState<string>("all"); // State for designation filter
+  const [selectedDesignation, setSelectedDesignation] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -63,12 +64,12 @@ export default function Home() {
   const uniqueDesignations = designationOrder.filter(d => employeeDesignations.includes(d))
     .concat(employeeDesignations.filter(d => !designationOrder.includes(d)));
 
-  // Filter employees by search query and designation
-  const filteredEmployees = employees.filter(emp => {
-    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (emp.designation && emp.designation.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesDesignation = selectedDesignation === "all" || emp.designation === selectedDesignation;
-    return matchesSearch && matchesDesignation;
+  // Filter employees based on search, designation, and status
+  const filteredEmployees = employees.filter(employee => {
+    const matchesSearch = employee.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesDesignation = selectedDesignation === "all" || employee.designation === selectedDesignation;
+    const matchesStatus = statusFilter === "all" || employee.status === statusFilter;
+    return matchesSearch && matchesDesignation && matchesStatus;
   });
 
   const handleDeleteEmployee = (employee: Employee) => {
@@ -126,7 +127,7 @@ export default function Home() {
         {/* Quick Actions */}
         <div className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card 
+            <Card
               className="hover:shadow-material-lg transition-shadow cursor-pointer"
               onClick={() => setShowCreateModal(true)}
               data-testid="card-add-employee"
@@ -144,7 +145,7 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Card 
+            <Card
               className="hover:shadow-material-lg transition-shadow cursor-pointer"
               onClick={() => setShowExportModal(true)}
               data-testid="card-export-data"
@@ -163,7 +164,7 @@ export default function Home() {
             </Card>
 
             <Link href="/attendance">
-              <Card 
+              <Card
                 className="hover:shadow-material-lg transition-shadow cursor-pointer"
                 data-testid="card-view-attendance"
               >
@@ -188,17 +189,27 @@ export default function Home() {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-medium" data-testid="text-employees-heading">Employees</h2>
             <div className="flex items-center space-x-4">
-              <div className="relative">
-                <Input
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
                   type="text"
                   placeholder="Search employees..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 pr-4"
+                  className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full"
                   data-testid="input-search-employees"
                 />
-                <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
               </div>
+              <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <SelectTrigger className="w-32" data-testid="select-status-filter-home">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="Active">Active</SelectItem>
+                  <SelectItem value="Inactive">Inactive</SelectItem>
+                </SelectContent>
+              </Select>
               <Select value={selectedDesignation} onValueChange={setSelectedDesignation}>
                 <SelectTrigger className="w-48" data-testid="select-designation-filter">
                   <SelectValue placeholder="Filter by designation" />
@@ -212,7 +223,7 @@ export default function Home() {
                   ))}
                 </SelectContent>
               </Select>
-              </div>
+            </div>
           </div>
 
           {isLoading ? (
@@ -232,15 +243,15 @@ export default function Home() {
                   <Building className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-medium mb-2" data-testid="text-no-employees">
-                  {searchQuery || selectedDesignation !== "all" ? "No employees found" : "No employees yet"}
+                  {searchQuery || selectedDesignation !== "all" || statusFilter !== "all" ? "No employees found" : "No employees yet"}
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  {searchQuery || selectedDesignation !== "all"
-                    ? "Try adjusting your search or filter terms" 
+                  {searchQuery || selectedDesignation !== "all" || statusFilter !== "all"
+                    ? "Try adjusting your search or filter terms"
                     : "Start by adding your first employee to the system"
                   }
                 </p>
-                {!searchQuery && selectedDesignation === "all" && (
+                {!searchQuery && selectedDesignation === "all" && statusFilter === "all" && (
                   <Button onClick={() => setShowCreateModal(true)} data-testid="button-add-first-employee">
                     Add Employee
                   </Button>
