@@ -325,6 +325,9 @@ app.post("/api/export/xlsx", async (req, res) => {
 
       // Style each cell in the data row
       row.eachCell((cell, colNumber) => {
+        // Determine if this is the remarks column (last column)
+        const isRemarksColumn = colNumber === headers.length;
+        
         // Base style for all cells (including empty ones)
         const baseStyle = {
           alignment: { horizontal: 'center', vertical: 'middle' },
@@ -333,9 +336,9 @@ app.post("/api/export/xlsx", async (req, res) => {
             bottom: { style: 'thin' },
             left: { style: 'thin' },
             right: { style: 'thin' }
-          }
-          // EXPLICITLY SET WHITE FILL for all cells
-          //fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
+          },
+          // Make all cells bold except remarks column
+          font: { bold: !isRemarksColumn }
         };
 
         // Apply base style to all cells
@@ -348,14 +351,6 @@ app.post("/api/export/xlsx", async (req, res) => {
             fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
           };
           return;
-        }
-
-        // Make SL.NO column (first column) BOLD
-        if (colNumber === 1) {
-          cell.style = {
-            ...cell.style,
-            font: { bold: true }
-          };
         }
 
         // Color code attendance columns - only for cells with actual values
