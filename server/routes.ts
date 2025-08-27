@@ -341,7 +341,7 @@ app.post("/api/export/xlsx", async (req, res) => {
               case 'OT':
                 cell.style = {
                   ...cell.style,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } } // Light yellow
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFE066' } } // Light yellow
                 };
                 break;
               case 'L':
