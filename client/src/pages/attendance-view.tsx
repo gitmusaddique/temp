@@ -132,18 +132,25 @@ export default function AttendanceView() {
 
   // Sort employees by designation hierarchy first, then by name within each designation
   const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
-    // Define designation hierarchy order
-    const designationOrder = {
+    // Define designation hierarchy order with more comprehensive mapping
+    const designationOrder: Record<string, number> = {
       'rig ic': 1,
       'shift ic': 2,
       'ass shift ic': 3,
+      'asst shift ic': 3,
+      'assistant shift ic': 3,
       'topman': 4,
-      'rigman': 5
+      'top man': 4,
+      'rigman': 5,
+      'rig man': 5
     };
 
     // Get designation order (case insensitive), default to 999 for unknown designations
-    const aOrder = designationOrder[a.designation?.toLowerCase() as keyof typeof designationOrder] || 999;
-    const bOrder = designationOrder[b.designation?.toLowerCase() as keyof typeof designationOrder] || 999;
+    const aDesignation = a.designation?.toLowerCase().trim() || '';
+    const bDesignation = b.designation?.toLowerCase().trim() || '';
+    
+    const aOrder = designationOrder[aDesignation] || 999;
+    const bOrder = designationOrder[bDesignation] || 999;
 
     // First sort by designation hierarchy
     if (aOrder !== bOrder) {
