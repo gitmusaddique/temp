@@ -385,7 +385,7 @@ export default function AttendanceView() {
               </Select>
               <div className="flex items-center space-x-2">
                 <Button
-                  variant={showAllEmployees ? "default" : "outline"}
+                  variant="outline"
                   onClick={() => {
                     setShowSelectionPanel(true);
                     if (showAllEmployees) {
