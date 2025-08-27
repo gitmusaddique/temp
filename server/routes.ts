@@ -436,7 +436,7 @@ app.post("/api/export/xlsx", async (req, res) => {
   // Improved PDF Export with dynamic layout and color coding
   app.post("/api/export/pdf", async (req, res) => {
     try {
-      const { month, year, selectedEmployees } = req.body;
+      const { month, year, selectedEmployees, companyName, rigName } = req.body;
 
       // Enhanced validation with current date check
       const monthNum = parseInt(month);
@@ -481,8 +481,23 @@ app.post("/api/export/xlsx", async (req, res) => {
       const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
       const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-      // Get settings for export headers
-      const appSettings = await storage.getSettings();
+      // Get settings for export headers, fetching from database if not provided
+      let appSettings = { companyName: '', rigName: '' };
+      if (companyName && rigName) {
+        appSettings = { companyName, rigName };
+      } else {
+        try {
+          const settings = await storage.getSettings();
+          appSettings = {
+            companyName: settings.companyName || 'Default Company',
+            rigName: settings.rigName || 'Default Rig'
+          };
+        } catch (settingsError) {
+          console.warn("Could not fetch settings from database, using defaults.", settingsError);
+          appSettings = { companyName: 'Default Company', rigName: 'Default Rig' };
+        }
+      }
+
 
       // Create PDF document with dynamic sizing
       const doc = new jsPDF({

@@ -18,13 +18,13 @@ interface ExportModalProps {
   showAllEmployees?: boolean;
 }
 
-export default function ExportModal({ 
-  isOpen, 
-  onClose, 
-  defaultMonth = new Date().getMonth() + 1 <= 12 ? (new Date().getMonth() + 1).toString() : "12", 
-  defaultYear = new Date().getFullYear().toString(), 
+export default function ExportModal({
+  isOpen,
+  onClose,
+  defaultMonth = new Date().getMonth() + 1 <= 12 ? (new Date().getMonth() + 1).toString() : "12",
+  defaultYear = new Date().getFullYear().toString(),
   selectedEmployees = new Set(),
-  showAllEmployees = true 
+  showAllEmployees = true
 }: ExportModalProps) {
   const [exportData, setExportData] = useState({
     month: defaultMonth,
@@ -57,12 +57,12 @@ export default function ExportModal({
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          month: parseInt(exportData.month),
-          year: parseInt(exportData.year),
-          selectedEmployees: showAllEmployees ? undefined : Array.from(selectedEmployees),
-          companyName: appSettings.companyName,
-          rigName: appSettings.rigName
-        }),
+            month: parseInt(exportData.month),
+            year: parseInt(exportData.year),
+            selectedEmployees: showAllEmployees ? undefined : Array.from(selectedEmployees),
+            companyName: appSettings?.companyName || 'Siddik',
+            rigName: appSettings?.rigName || 'ROM-100-II'
+          }),
       });
 
       if (!response.ok) {
@@ -159,8 +159,8 @@ export default function ExportModal({
 
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2">Export Format</Label>
-            <RadioGroup 
-              value={exportData.format} 
+            <RadioGroup
+              value={exportData.format}
               onValueChange={(value) => setExportData({ ...exportData, format: value })}
               className="space-y-2"
               data-testid="radio-export-format"
