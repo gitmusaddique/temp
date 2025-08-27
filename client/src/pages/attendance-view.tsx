@@ -448,6 +448,7 @@ export default function AttendanceView() {
                     size="sm"
                     onClick={() => setSelectedEmployees(new Set(selectionFilteredEmployees.map(emp => emp.id)))}
                     data-testid="button-select-all-filtered"
+                    className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-3 py-1"
                   >
                     Select All Filtered
                   </Button>
@@ -456,6 +457,7 @@ export default function AttendanceView() {
                     size="sm"
                     onClick={() => setSelectedEmployees(new Set())}
                     data-testid="button-clear-all-selections"
+                    className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium px-3 py-1"
                   >
                     Clear All
                   </Button>
