@@ -40,6 +40,11 @@ export default function AttendanceView() {
   const [modalStatusFilter, setModalStatusFilter] = useState("all"); // Added for status filtering in modal
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [showDateRangeModal, setShowDateRangeModal] = useState(false);
+  const [bulkAction, setBulkAction] = useState<"fill" | "clear" | null>(null);
 
   // Load settings from database
   const { data: settings } = useQuery({
@@ -237,6 +242,69 @@ export default function AttendanceView() {
     [updateRemarksMutation]
   );
 
+  // Bulk update attendance mutation
+  const bulkUpdateAttendanceMutation = useMutation({
+    mutationFn: async ({ employeeId, startDay, endDay, status }: { employeeId: string, startDay: number, endDay: number, status: string }) => {
+      const existingRecord = attendanceRecords.find(r => r.employeeId === employeeId);
+      let attendanceData: Record<string, string> = {};
+
+      if (existingRecord && existingRecord.attendanceData) {
+        try {
+          attendanceData = JSON.parse(existingRecord.attendanceData) as Record<string, string>;
+        } catch {
+          attendanceData = {};
+        }
+      }
+
+      // Update all days in the range
+      for (let day = startDay; day <= endDay; day++) {
+        if (status === "") {
+          delete attendanceData[day.toString()];
+        } else {
+          attendanceData[day.toString()] = status;
+        }
+      }
+
+      const response = await fetch('/api/attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          employeeId,
+          month: parseInt(selectedMonth),
+          year: parseInt(selectedYear),
+          attendanceData: JSON.stringify(attendanceData)
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update attendance');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
+      toast({
+        title: "Success",
+        description: "Attendance updated successfully"
+      });
+      setShowDateRangeModal(false);
+      setSelectedRowId(null);
+      setStartDate("");
+      setEndDate("");
+      setBulkAction(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update attendance",
+        variant: "destructive"
+      });
+    }
+  });
+
   // Update attendance mutation
   const updateAttendanceMutation = useMutation({
     mutationFn: async ({ employeeId, day, status }: { employeeId: string, day: number, status: string }) => {
@@ -295,6 +363,74 @@ export default function AttendanceView() {
 
   const handleSettingsUpdate = (settings: { companyName: string; rigName: string }) => {
     setAppSettings(settings);
+  };
+
+  // Validate date range
+  const validateDateRange = (start: string, end: string): boolean => {
+    const startDay = parseInt(start);
+    const endDay = parseInt(end);
+    
+    if (!startDay || !endDay || startDay < 1 || endDay < 1 || startDay > daysInMonth || endDay > daysInMonth) {
+      return false;
+    }
+    
+    return startDay <= endDay;
+  };
+
+  // Handle bulk fill
+  const handleBulkFill = (status: string) => {
+    if (!selectedRowId || !startDate || !endDate) {
+      toast({
+        title: "Error",
+        description: "Please select a row and valid date range",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validateDateRange(startDate, endDate)) {
+      toast({
+        title: "Invalid Range",
+        description: `Please enter valid dates between 1 and ${daysInMonth}. Start date must be less than or equal to end date.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    bulkUpdateAttendanceMutation.mutate({
+      employeeId: selectedRowId,
+      startDay: parseInt(startDate),
+      endDay: parseInt(endDate),
+      status
+    });
+  };
+
+  // Handle bulk clear
+  const handleBulkClear = () => {
+    if (!selectedRowId || !startDate || !endDate) {
+      toast({
+        title: "Error",
+        description: "Please select a row and valid date range",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validateDateRange(startDate, endDate)) {
+      toast({
+        title: "Invalid Range",
+        description: `Please enter valid dates between 1 and ${daysInMonth}. Start date must be less than or equal to end date.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    bulkUpdateAttendanceMutation.mutate({
+      employeeId: selectedRowId,
+      startDay: parseInt(startDate),
+      endDay: parseInt(endDate),
+      status: ""
+    });
   };
 
   return (
@@ -405,6 +541,14 @@ export default function AttendanceView() {
                 >
                   <Download className="w-4 h-4 mr-2" />
                   Export
+                </Button>
+                
+                <Button 
+                  onClick={() => setShowDateRangeModal(true)}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  data-testid="button-bulk-operations"
+                >
+                  Bulk Operations
                 </Button>
               </div>
             </div>
@@ -618,7 +762,14 @@ export default function AttendanceView() {
                       const totalOT = dayColumns.filter(day => getAttendanceStatus(employee.id, day) === "OT").length;
 
                       return (
-                        <tr key={employee.id} className="hover:bg-gray-50" data-testid={`row-employee-${employee.id}`}>
+                        <tr 
+                          key={employee.id} 
+                          className={`hover:bg-gray-50 cursor-pointer ${
+                            selectedRowId === employee.id ? 'bg-blue-100 border-2 border-blue-500' : ''
+                          }`} 
+                          data-testid={`row-employee-${employee.id}`}
+                          onClick={() => setSelectedRowId(selectedRowId === employee.id ? null : employee.id)}
+                        >
                           <td className="px-2 py-2 text-sm border-r" data-testid={`text-serial-${employee.id}`}>
                             {index + 1}
                           </td>
@@ -645,7 +796,10 @@ export default function AttendanceView() {
                                   status === "A" ? "bg-red-50 text-red-700" : 
                                   status === "OT" ? "bg-yellow-50 text-yellow-800" : "hover:bg-gray-100"
                                 }`}
-                                onClick={() => setSelectedCell({ employeeId: employee.id, day, currentStatus: status })}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedCell({ employeeId: employee.id, day, currentStatus: status });
+                                }}
                                 data-testid={`cell-attendance-${employee.id}-${day}`}
                                 title="Click to edit attendance"
                               >
@@ -798,6 +952,136 @@ export default function AttendanceView() {
         onClose={() => setShowSettingsModal(false)}
         onSettingsUpdate={handleSettingsUpdate}
       />
+
+      {/* Bulk Operations Modal */}
+      <Dialog open={showDateRangeModal} onOpenChange={setShowDateRangeModal}>
+        <DialogContent className="max-w-md" aria-describedby="bulk-operations-description">
+          <DialogHeader>
+            <DialogTitle>Bulk Operations</DialogTitle>
+          </DialogHeader>
+
+          <div id="bulk-operations-description" className="sr-only">
+            Select date range and operation to apply to selected employee row
+          </div>
+
+          <div className="space-y-4">
+            {!selectedRowId && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <p className="text-sm text-yellow-800">
+                  Please select a row first by clicking on an employee row in the table.
+                </p>
+              </div>
+            )}
+
+            {selectedRowId && (
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Selected Employee: {employees.find(emp => emp.id === selectedRowId)?.name}
+                </p>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={daysInMonth}
+                  value={startDate}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="1"
+                  data-testid="input-start-date"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max={daysInMonth}
+                  value={endDate}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder={daysInMonth.toString()}
+                  data-testid="input-end-date"
+                />
+              </div>
+            </div>
+
+            <p className="text-xs text-gray-500">
+              Valid range: 1 to {daysInMonth} for {monthNames[parseInt(selectedMonth) - 1]} {selectedYear}
+            </p>
+
+            <div className="space-y-3">
+              <p className="text-sm font-medium text-gray-700">Fill Range With:</p>
+              
+              <div className="grid grid-cols-3 gap-2">
+                <Button
+                  onClick={() => handleBulkFill("P")}
+                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  data-testid="button-fill-present"
+                >
+                  Present (P)
+                </Button>
+                
+                <Button
+                  onClick={() => handleBulkFill("A")}
+                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                  className="bg-red-600 hover:bg-red-700 text-white"
+                  data-testid="button-fill-absent"
+                >
+                  Absent (A)
+                </Button>
+                
+                <Button
+                  onClick={() => handleBulkFill("OT")}
+                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                  className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                  data-testid="button-fill-overtime"
+                >
+                  Overtime (OT)
+                </Button>
+              </div>
+
+              <Button
+                onClick={handleBulkClear}
+                disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                variant="outline"
+                className="w-full border-2 border-gray-400 hover:bg-gray-50"
+                data-testid="button-clear-range"
+              >
+                Clear Range
+              </Button>
+            </div>
+
+            {bulkUpdateAttendanceMutation.isPending && (
+              <p className="text-sm text-gray-500 text-center">Updating attendance...</p>
+            )}
+
+            <div className="flex justify-end pt-4 border-t">
+              <Button
+                onClick={() => {
+                  setShowDateRangeModal(false);
+                  setSelectedRowId(null);
+                  setStartDate("");
+                  setEndDate("");
+                }}
+                variant="outline"
+                data-testid="button-cancel-bulk"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
