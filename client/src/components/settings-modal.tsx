@@ -149,27 +149,19 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
           <div className="flex justify-between pt-4">
             <Button
               variant="outline"
-              onClick={handleReset}
-              data-testid="button-reset-settings"
+              onClick={onClose}
+              data-testid="button-cancel-settings"
+              className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium"
             >
-              Reset to Default
+              Cancel
             </Button>
-            <div className="space-x-2">
-              <Button
-                variant="outline"
-                onClick={onClose}
-                data-testid="button-cancel-settings"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSave}
-                data-testid="button-save-settings"
-                disabled={mutation.isPending}
-              >
-                {mutation.isPending ? "Saving..." : "Save"}
-              </Button>
-            </div>
+            <Button
+              onClick={handleSave}
+              data-testid="button-save-settings"
+              disabled={mutation.isPending}
+            >
+              {mutation.isPending ? "Saving..." : "Save"}
+            </Button>
           </div>
         </div>
       </DialogContent>
