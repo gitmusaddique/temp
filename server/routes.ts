@@ -366,19 +366,19 @@ app.post("/api/export/xlsx", async (req, res) => {
               case 'P':
                 cell.style = {
                   ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF8EC07C' } } // Gruvbox bright green
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD5F4E6' } } // Light green (Gruvbox green tinted)
                 };
                 break;
               case 'A':
                 cell.style = {
                   ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFB4934' } } // Gruvbox bright red
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE2E4' } } // Light red (Gruvbox red tinted)
                 };
                 break;
               case 'OT':
                 cell.style = {
                   ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFABD2F' } } // Gruvbox bright yellow
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF7CD' } } // Light yellow (Gruvbox yellow tinted)
                 };
                 break;
               case 'L':
