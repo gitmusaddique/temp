@@ -69,7 +69,7 @@ export default function AttendanceView() {
   const getAvailableMonths = (year: number) => {
     const months = [];
     const maxMonth = year === currentYear ? currentMonth : 12;
-    
+
     for (let month = 1; month <= maxMonth; month++) {
       months.push({
         value: month,
@@ -130,12 +130,28 @@ export default function AttendanceView() {
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Sort by designation hierarchy only
+  // Sort employees by designation hierarchy, then by name within each designation
   const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
-    const priorityA = getDesignationPriority(a.designation);
-    const priorityB = getDesignationPriority(b.designation);
-    
-    return priorityA - priorityB;
+    // Define designation hierarchy order
+    const designationOrder = {
+      'rig ic': 1,
+      'shift ic': 2,
+      'ass shift ic': 3,
+      'topman': 4,
+      'rigman': 5
+    };
+
+    // Get designation order (case insensitive), default to 999 for unknown designations
+    const aOrder = designationOrder[a.designation?.toLowerCase() as keyof typeof designationOrder] || 999;
+    const bOrder = designationOrder[b.designation?.toLowerCase() as keyof typeof designationOrder] || 999;
+
+    // If designations are different, sort by hierarchy
+    if (aOrder !== bOrder) {
+      return aOrder - bOrder;
+    }
+
+    // If same designation, sort by name alphabetically
+    return (a.name || '').localeCompare(b.name || '');
   });
 
   // Filter employees for modal by modal designation filter
@@ -148,7 +164,7 @@ export default function AttendanceView() {
     ? sortedFilteredEmployees
     : sortedFilteredEmployees.filter(emp => selectedEmployees.has(emp.id));
 
-  
+
 
   // Reset selections when designation filter changes
   React.useEffect(() => {
@@ -179,7 +195,7 @@ export default function AttendanceView() {
   const getAttendanceStatus = (employeeId: string, day: number): string => {
     const record = attendanceRecords.find(r => r.employeeId === employeeId);
     if (!record || !record.attendanceData) return "";
-    
+
     try {
       const data = JSON.parse(record.attendanceData) as Record<string, string>;
       return data[day.toString()] || "";
@@ -206,7 +222,7 @@ export default function AttendanceView() {
         newRemarksState[record.employeeId] = record.remarks;
       }
     });
-    
+
     // Only update if we have new data to set
     if (Object.keys(newRemarksState).length > 0) {
       setRemarksState(prev => ({ ...prev, ...newRemarksState }));
@@ -218,7 +234,7 @@ export default function AttendanceView() {
     mutationFn: async ({ employeeId, remarks }: { employeeId: string, remarks: string }) => {
       const existingRecord = attendanceRecords.find(r => r.employeeId === employeeId);
       let attendanceData: Record<string, string> = {};
-      
+
       if (existingRecord && existingRecord.attendanceData) {
         try {
           attendanceData = JSON.parse(existingRecord.attendanceData) as Record<string, string>;
@@ -236,7 +252,7 @@ export default function AttendanceView() {
         otDays: existingRecord?.otDays || 0,
         remarks: remarks.trim() || null
       });
-      
+
       return response;
     },
     onSuccess: () => {
@@ -264,7 +280,7 @@ export default function AttendanceView() {
     mutationFn: async ({ employeeId, day, status }: { employeeId: string, day: number, status: string }) => {
       const existingRecord = attendanceRecords.find(r => r.employeeId === employeeId);
       let attendanceData: Record<string, string> = {};
-      
+
       if (existingRecord && existingRecord.attendanceData) {
         try {
           attendanceData = JSON.parse(existingRecord.attendanceData) as Record<string, string>;
@@ -272,13 +288,13 @@ export default function AttendanceView() {
           attendanceData = {};
         }
       }
-      
+
       if (status === "") {
         delete attendanceData[day.toString()];
       } else {
         attendanceData[day.toString()] = status;
       }
-      
+
       const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: {
@@ -291,11 +307,11 @@ export default function AttendanceView() {
           attendanceData: JSON.stringify(attendanceData)
         })
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to update attendance');
       }
-      
+
       return response.json();
     },
     onSuccess: () => {
@@ -352,7 +368,7 @@ export default function AttendanceView() {
                   ))}
                 </SelectContent>
               </Select>
-              
+
               <Select value={selectedMonth} onValueChange={setSelectedMonth}>
                 <SelectTrigger className="w-40" data-testid="select-month">
                   <SelectValue placeholder="Month" />
@@ -379,7 +395,7 @@ export default function AttendanceView() {
                 >
                   {showAllEmployees ? "Select Employees" : `Selected (${selectedEmployees.size})`}
                 </Button>
-                
+
                 <Button 
                   onClick={() => setShowExportModal(true)}
                   className="bg-secondary hover:bg-secondary-light text-white"
@@ -400,11 +416,11 @@ export default function AttendanceView() {
           <DialogHeader>
             <DialogTitle>Select Employees for Attendance</DialogTitle>
           </DialogHeader>
-          
+
           <div id="employee-selection-description" className="sr-only">
             Select employees to include in the attendance view
           </div>
-          
+
           <div className="flex flex-col space-y-4">
             {/* Designation Filter for Modal */}
             <div className="pb-4 border-b">
@@ -453,13 +469,13 @@ export default function AttendanceView() {
                 </div>
               ))}
             </div>
-            
+
             {modalFilteredEmployees.length === 0 && (
               <p className="text-center text-gray-500 py-8">
                 No employees found for the selected filters.
               </p>
             )}
-            
+
             <div className="flex items-center justify-between pt-4 border-t">
               <p className="text-sm text-gray-600">
                 {selectedEmployees.size} of {sortedFilteredEmployees.length} employee(s) selected
@@ -515,7 +531,7 @@ export default function AttendanceView() {
               MONTH:-{monthNames[parseInt(selectedMonth) - 1].toUpperCase()}. {selectedYear}
             </p>
           </CardHeader>
-          
+
           <CardContent className="p-0">
             {/* Designation Filter */}
             <div className="p-4 border-b bg-gray-50">
@@ -579,7 +595,7 @@ export default function AttendanceView() {
                     displayEmployees.map((employee, index) => {
                       const totalPresent = dayColumns.filter(day => getAttendanceStatus(employee.id, day) === "P").length;
                       const totalOT = dayColumns.filter(day => getAttendanceStatus(employee.id, day) === "OT").length;
-                      
+
                       return (
                         <tr key={employee.id} className="hover:bg-gray-50" data-testid={`row-employee-${employee.id}`}>
                           <td className="px-2 py-2 text-sm border-r" data-testid={`text-serial-${employee.id}`}>
@@ -661,16 +677,16 @@ export default function AttendanceView() {
                 Day {selectedCell.day} Attendance
               </DialogTitle>
             </DialogHeader>
-            
+
             <div id="attendance-status-description" className="sr-only">
               Select attendance status for the selected day
             </div>
-            
+
             <div className="space-y-3">
               <p className="text-sm text-gray-600">
                 Select attendance status:
               </p>
-              
+
               <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant="outline"
@@ -688,7 +704,7 @@ export default function AttendanceView() {
                 >
                   Blank
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
@@ -705,7 +721,7 @@ export default function AttendanceView() {
                 >
                   Present (P)
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
@@ -722,7 +738,7 @@ export default function AttendanceView() {
                 >
                   Absent (A)
                 </Button>
-                
+
                 <Button
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
@@ -740,7 +756,7 @@ export default function AttendanceView() {
                   Overtime (OT)
                 </Button>
               </div>
-              
+
               {updateAttendanceMutation.isPending && (
                 <p className="text-sm text-gray-500 text-center">Updating...</p>
               )}
