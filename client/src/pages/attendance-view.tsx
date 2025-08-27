@@ -88,15 +88,59 @@ export default function AttendanceView() {
   // Get unique designations for filter
   const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
 
+  // Define designation hierarchy (top positions first)
+  const designationHierarchy = [
+    "Managing Director",
+    "Director",
+    "General Manager", 
+    "Assistant General Manager",
+    "Manager",
+    "Assistant Manager",
+    "Senior Executive",
+    "Executive",
+    "Assistant Executive",
+    "Senior Officer",
+    "Officer",
+    "Assistant Officer",
+    "Senior Clerk",
+    "Clerk",
+    "Assistant Clerk",
+    "Senior Assistant",
+    "Assistant",
+    "Trainee"
+  ];
+
+  // Function to get designation priority (lower number = higher priority)
+  const getDesignationPriority = (designation: string | null): number => {
+    if (!designation) return 999; // Put employees without designation at the end
+    const index = designationHierarchy.findIndex(d => 
+      d.toLowerCase() === designation.toLowerCase()
+    );
+    return index === -1 ? 500 : index; // Unknown designations in the middle
+  };
+
   // Filter employees by main designation filter
   const designationFilteredEmployees = selectedDesignation === "all" 
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
+  // Sort by designation hierarchy, then by name
+  const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
+    const priorityA = getDesignationPriority(a.designation);
+    const priorityB = getDesignationPriority(b.designation);
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB;
+    }
+    
+    // If same priority, sort by name
+    return a.name.localeCompare(b.name);
+  });
+
   // Then filter by selection if not showing all
   const displayEmployees = showAllEmployees 
-    ? designationFilteredEmployees
-    : designationFilteredEmployees.filter(emp => selectedEmployees.has(emp.id));
+    ? sortedFilteredEmployees
+    : sortedFilteredEmployees.filter(emp => selectedEmployees.has(emp.id));
 
   
 
@@ -104,10 +148,10 @@ export default function AttendanceView() {
   React.useEffect(() => {
     if (selectedDesignation !== "all") {
       // Clear selections that are no longer in the filtered list
-      const filteredIds = new Set(designationFilteredEmployees.map(emp => emp.id));
+      const filteredIds = new Set(sortedFilteredEmployees.map(emp => emp.id));
       setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
     }
-  }, [selectedDesignation, designationFilteredEmployees]);
+  }, [selectedDesignation, sortedFilteredEmployees]);
 
   // Toggle individual employee selection
   const toggleEmployeeSelection = (employeeId: string) => {
@@ -279,7 +323,7 @@ export default function AttendanceView() {
                 </p>
                 {!showAllEmployees && (
                   <p className="text-xs text-blue-600" data-testid="text-selection-status">
-                    {selectedEmployees.size} of {designationFilteredEmployees.length} employees selected
+                    {selectedEmployees.size} of {sortedFilteredEmployees.length} employees selected
                   </p>
                 )}
               </div>
@@ -354,7 +398,7 @@ export default function AttendanceView() {
           
           <div className="flex flex-col space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-              {designationFilteredEmployees.map(employee => (
+              {sortedFilteredEmployees.map(employee => (
                 <div 
                   key={employee.id}
                   className={`p-3 border rounded-lg cursor-pointer transition-all ${
@@ -380,7 +424,7 @@ export default function AttendanceView() {
               ))}
             </div>
             
-            {designationFilteredEmployees.length === 0 && (
+            {sortedFilteredEmployees.length === 0 && (
               <p className="text-center text-gray-500 py-8">
                 No employees found for the selected designation filter.
               </p>
@@ -388,13 +432,13 @@ export default function AttendanceView() {
             
             <div className="flex items-center justify-between pt-4 border-t">
               <p className="text-sm text-gray-600">
-                {selectedEmployees.size} employee(s) selected
+                {selectedEmployees.size} of {sortedFilteredEmployees.length} employee(s) selected
               </p>
               <div className="space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)))}
+                  onClick={() => setSelectedEmployees(new Set(sortedFilteredEmployees.map(emp => emp.id)))}
                   data-testid="button-select-all-filtered"
                   className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-3 py-1"
                 >
@@ -464,7 +508,7 @@ export default function AttendanceView() {
                     <tr>
                       <td colSpan={dayColumns.length + 6} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
                         {employees.length === 0 ? "No employees found. Add employees to view attendance." : 
-                         designationFilteredEmployees.length === 0 ? "No employees match the selected designation." :
+                         sortedFilteredEmployees.length === 0 ? "No employees match the selected designation." :
                          showAllEmployees ? "No employees match the selected designation." : 
                          "No employees selected. Use the employee selection panel above to select employees."}
                       </td>
@@ -477,7 +521,7 @@ export default function AttendanceView() {
                       return (
                         <tr key={employee.id} className="hover:bg-gray-50" data-testid={`row-employee-${employee.id}`}>
                           <td className="px-2 py-2 text-sm border-r" data-testid={`text-serial-${employee.id}`}>
-                            {employee.serialNumber}
+                            {index + 1}
                           </td>
                           <td className="px-4 py-2 text-sm font-medium border-r" data-testid={`text-name-${employee.id}`}>
                             {employee.name}
