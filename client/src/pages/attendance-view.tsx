@@ -493,7 +493,7 @@ export default function AttendanceView() {
                 </Select>
               </div>
             </div>
-            <div className="overflow-x-auto"></div>
+            <div className="overflow-x-auto">
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
