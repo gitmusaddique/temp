@@ -570,9 +570,9 @@ export default function AttendanceView() {
                 </Select>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
               <table className="min-w-full">
-                <thead className="bg-gray-50 border-b">
+                <thead className="bg-gray-50 border-b sticky top-0 z-10">
                   <tr>
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase border-r" data-testid="header-sl-no">
                       SL.NO
