@@ -34,8 +34,6 @@ export default function AttendanceView() {
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [showAllEmployees, setShowAllEmployees] = useState(true);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
-  const [selectionDesignationFilter, setSelectionDesignationFilter] = useState("all");
-  const [hideSelectionPanel, setHideSelectionPanel] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -93,11 +91,6 @@ export default function AttendanceView() {
   const designationFilteredEmployees = selectedDesignation === "all" 
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
-
-  // Filter employees for selection dropdown by selection designation filter
-  const selectionFilteredEmployees = selectionDesignationFilter === "all"
-    ? employees
-    : employees.filter(emp => emp.designation === selectionDesignationFilter);
 
   // Then filter by selection if not showing all
   const displayEmployees = showAllEmployees 
@@ -317,16 +310,14 @@ export default function AttendanceView() {
                 </SelectContent>
               </Select>
               <div className="flex items-center space-x-2">
-                {!showAllEmployees && hideSelectionPanel && (
-                  <Button
-                    variant="outline"
-                    onClick={() => setHideSelectionPanel(false)}
-                    data-testid="button-show-selection-panel"
-                    className="bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 hover:border-green-700 font-medium px-3 py-2"
-                  >
-                    Select ({selectedEmployees.size})
-                  </Button>
-                )}
+                <Button
+                  variant={showAllEmployees ? "default" : "outline"}
+                  onClick={() => setShowAllEmployees(!showAllEmployees)}
+                  data-testid="button-toggle-employee-view"
+                  className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-4 py-2"
+                >
+                  {showAllEmployees ? "Select Employees" : `Selected (${selectedEmployees.size})`}
+                </Button>
                 
                 <Button 
                   onClick={() => setShowExportModal(true)}
@@ -343,42 +334,15 @@ export default function AttendanceView() {
       </div>
 
       {/* Employee Selection Panel */}
-      {!showAllEmployees && !hideSelectionPanel && (
+      {!showAllEmployees && (
         <div className="max-w-full mx-auto px-4 py-4">
           <Card className="mb-6">
             <CardHeader>
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setHideSelectionPanel(true)}
-                  data-testid="button-hide-selection-panel"
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 hover:border-red-400"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
+              <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="mb-4">
-                <Select value={selectionDesignationFilter} onValueChange={setSelectionDesignationFilter}>
-                  <SelectTrigger className="w-64" data-testid="select-selection-designation-filter">
-                    <SelectValue placeholder="Filter by designation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Designations</SelectItem>
-                    {uniqueDesignations.map(designation => (
-                      <SelectItem key={designation} value={designation}>
-                        {designation}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
-                {selectionFilteredEmployees.map(employee => (
+                {designationFilteredEmployees.map(employee => (
                   <div 
                     key={employee.id}
                     className={`p-3 border rounded-lg cursor-pointer transition-all ${
@@ -404,7 +368,7 @@ export default function AttendanceView() {
                 ))}
               </div>
               
-              {selectionFilteredEmployees.length === 0 && (
+              {designationFilteredEmployees.length === 0 && (
                 <p className="text-center text-gray-500 py-8">
                   No employees found for the selected designation filter.
                 </p>
@@ -418,11 +382,11 @@ export default function AttendanceView() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setSelectedEmployees(new Set(selectionFilteredEmployees.map(emp => emp.id)))}
+                    onClick={() => setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)))}
                     data-testid="button-select-all-filtered"
                     className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-3 py-1"
                   >
-                    Select All Filtered
+                    Select All
                   </Button>
                   <Button
                     variant="outline"
