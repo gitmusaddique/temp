@@ -130,7 +130,7 @@ export default function AttendanceView() {
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Sort employees by designation hierarchy, then by name within each designation
+  // Sort employees by designation hierarchy first, then by name within each designation
   const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
     // Define designation hierarchy order
     const designationOrder = {
@@ -145,12 +145,12 @@ export default function AttendanceView() {
     const aOrder = designationOrder[a.designation?.toLowerCase() as keyof typeof designationOrder] || 999;
     const bOrder = designationOrder[b.designation?.toLowerCase() as keyof typeof designationOrder] || 999;
 
-    // If designations are different, sort by hierarchy
+    // First sort by designation hierarchy
     if (aOrder !== bOrder) {
       return aOrder - bOrder;
     }
 
-    // If same designation, sort by name alphabetically
+    // Within same designation, sort alphabetically by name
     return (a.name || '').localeCompare(b.name || '');
   });
 
