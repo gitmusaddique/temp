@@ -39,17 +39,18 @@ export default function AttendanceView() {
   const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
   const [modalStatusFilter, setModalStatusFilter] = useState("all"); // Added for status filtering in modal
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [appSettings, setAppSettings] = useState(() => {
-    const saved = localStorage.getItem('appSettings');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return { companyName: "Siddik", rigName: "ROM-100-II" };
-      }
-    }
-    return { companyName: "Siddik", rigName: "ROM-100-II" };
+  const [appSettings, setAppSettings] = useState({ companyName: "Siddik", rigName: "ROM-100-II" });
+
+  // Load settings from database
+  const { data: settings } = useQuery({
+    queryKey: ["/api/settings"],
   });
+
+  useEffect(() => {
+    if (settings) {
+      setAppSettings(settings);
+    }
+  }, [settings]);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 

@@ -1,10 +1,10 @@
-
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "./ui/dialog";
+import { Button } from "./ui/button";
+import { Input } from "./ui/input";
+import { Label } from "./ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -16,20 +16,59 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
   const [companyName, setCompanyName] = useState("Siddik");
   const [rigName, setRigName] = useState("ROM-100-II");
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    // Load settings from localStorage on component mount
-    const savedSettings = localStorage.getItem('appSettings');
-    if (savedSettings) {
-      try {
-        const settings = JSON.parse(savedSettings);
-        setCompanyName(settings.companyName || "Siddik");
-        setRigName(settings.rigName || "ROM-100-II");
-      } catch (error) {
-        console.error("Error loading settings:", error);
+  // Fetch settings from the database
+  const { data: settingsData, isLoading, isError, error } = useQuery({
+    queryKey: ['settings'],
+    queryFn: async () => {
+      const response = await fetch('/api/settings');
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
+      return response.json();
+    },
+  });
+
+  // Update local state when settings are fetched
+  useEffect(() => {
+    if (settingsData) {
+      setCompanyName(settingsData.companyName || "Siddik");
+      setRigName(settingsData.rigName || "ROM-100-II");
     }
-  }, []);
+  }, [settingsData]);
+
+  // Mutation to update settings in the database
+  const mutation = useMutation({
+    mutationFn: async (newSettings: { companyName: string; rigName: string }) => {
+      const response = await fetch('/api/settings', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(newSettings),
+      });
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['settings'] });
+      toast({
+        title: "Success",
+        description: "Settings saved successfully",
+      });
+      onClose();
+    },
+    onError: (err) => {
+      toast({
+        title: "Error",
+        description: `Failed to save settings: ${err.message}`,
+        variant: "destructive",
+      });
+    },
+  });
 
   const handleSave = () => {
     if (!companyName.trim() || !rigName.trim()) {
@@ -41,29 +80,28 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
       return;
     }
 
-    const settings = {
+    const newSettings = {
       companyName: companyName.trim(),
       rigName: rigName.trim()
     };
 
-    // Save to localStorage
-    localStorage.setItem('appSettings', JSON.stringify(settings));
-    
-    // Notify parent component
-    onSettingsUpdate(settings);
-    
-    toast({
-      title: "Success",
-      description: "Settings saved successfully",
-    });
-    
-    onClose();
+    mutation.mutate(newSettings);
   };
 
   const handleReset = () => {
+    // Reset to default values
     setCompanyName("Siddik");
     setRigName("ROM-100-II");
+    // Optionally, if you want to reset to the fetched default values, you can do:
+    // if (settingsData) {
+    //   setCompanyName(settingsData.companyName || "Siddik");
+    //   setRigName(settingsData.rigName || "ROM-100-II");
+    // }
   };
+
+  if (isLoading) return <Dialog open={isOpen} onOpenChange={onClose}><DialogContent><p>Loading settings...</p></DialogContent></Dialog>;
+  if (isError) return <Dialog open={isOpen} onOpenChange={onClose}><DialogContent><p>Error loading settings: {error.message}</p></DialogContent></Dialog>;
+
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -126,8 +164,9 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
               <Button
                 onClick={handleSave}
                 data-testid="button-save-settings"
+                disabled={mutation.isPending}
               >
-                Save
+                {mutation.isPending ? "Saving..." : "Save"}
               </Button>
             </div>
           </div>

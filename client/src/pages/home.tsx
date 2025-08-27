@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -33,19 +33,17 @@ export default function Home() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [appSettings, setAppSettings] = useState(() => {
-    const saved = localStorage.getItem('appSettings');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch {
-        return { companyName: "Siddik", rigName: "ROM-100-II" };
-      }
-    }
-    return { companyName: "Siddik", rigName: "ROM-100-II" };
-  });
+  const [appSettings, setAppSettings] = useState({ companyName: "Siddik", rigName: "ROM-100-II" });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // Fetch app settings from the database
+  const { data: settings, isLoading: isLoadingSettings } = useQuery<{ companyName: string; rigName: string }>({
+    queryKey: ["/api/settings"],
+    onSuccess: (data) => {
+      setAppSettings(data);
+    },
+  });
 
   const { data: employees = [], isLoading } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
@@ -68,6 +66,27 @@ export default function Home() {
       toast({
         title: "Error",
         description: "Failed to delete employee",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (settings: { companyName: string; rigName: string }) => {
+      await apiRequest("PUT", "/api/settings", settings);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/settings"] });
+      toast({
+        title: "Success",
+        description: "Settings updated successfully",
+      });
+      setShowSettingsModal(false);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update settings",
         variant: "destructive",
       });
     },
@@ -99,7 +118,7 @@ export default function Home() {
   };
 
   const handleSettingsUpdate = (settings: { companyName: string; rigName: string }) => {
-    setAppSettings(settings);
+    updateSettingsMutation.mutate(settings);
   };
 
   return (

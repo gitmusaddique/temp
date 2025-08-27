@@ -154,6 +154,9 @@ app.post("/api/export/xlsx", async (req, res) => {
     const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
     const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
+    // Get settings for export headers
+    const appSettings = await storage.getSettings();
+
     // Create new workbook and worksheet
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(`${monthNames[monthNum - 1]} ${yearNum}`);
@@ -170,9 +173,9 @@ app.post("/api/export/xlsx", async (req, res) => {
     ];
 
     // Add title rows
-    worksheet.addRow(['South Asia Consultancy']);
+    worksheet.addRow([appSettings.companyName]);
     worksheet.addRow(['Attendance']);
-    worksheet.addRow([`ROM-100-II MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`]);
+    worksheet.addRow([`${appSettings.rigName} MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`]);
     worksheet.addRow([]); // Empty row
     worksheet.addRow(headers); // Headers
 
@@ -450,21 +453,14 @@ app.post("/api/export/xlsx", async (req, res) => {
       const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
       const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-      // Determine page size based on number of columns
-      const totalColumns = 9 + daysInMonth; // 9 fixed columns + day columns
-      let pageFormat = 'a4';
-      let orientation: 'landscape' | 'portrait' = 'landscape';
-
-      // For months with many days, use A3 or split into multiple tables
-      if (totalColumns > 40) {
-        pageFormat = 'a3';
-      }
+      // Get settings for export headers
+      const appSettings = await storage.getSettings();
 
       // Create PDF document with dynamic sizing
       const doc = new jsPDF({
-        orientation: orientation,
+        orientation: 'landscape',
         unit: 'mm',
-        format: pageFormat as any
+        format: 'a4' // Default to A4, will be adjusted later if needed
       });
 
       // Get page dimensions
@@ -474,7 +470,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       // Title with proper company header
       doc.setFontSize(16);
       doc.setFont(undefined, 'bold');
-      doc.text('South Asia Consultancy', pageWidth / 2, 15, { align: 'center' });
+      doc.text(appSettings.companyName, pageWidth / 2, 15, { align: 'center' });
 
       doc.setFontSize(14);
       doc.setFont(undefined, 'bold');
@@ -482,7 +478,7 @@ app.post("/api/export/xlsx", async (req, res) => {
 
       doc.setFontSize(12);
       doc.setFont(undefined, 'bold');
-      doc.text(`ROM-100-II MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`, pageWidth / 2, 35, { align: 'center' });
+      doc.text(`${appSettings.rigName} MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`, pageWidth / 2, 35, { align: 'center' });
 
       // Prepare table headers to match reference format
       const headers = [
@@ -539,10 +535,10 @@ app.post("/api/export/xlsx", async (req, res) => {
 
       // Calculate dynamic column widths
       const availableWidth = pageWidth - 20; // Subtract margins
-      const fixedCols = 9; // Non-day columns
-      const fixedColsWidth = 70; // Total width for fixed columns
+      const fixedColsCount = 9; // SL.NO, NAME, DESIGNATION, T/ON DUTY, OT DAYS, REMARKS + 3 dynamic header columns if they exist
+      const fixedColsWidth = 65; // Approximate total width for fixed columns (SL.NO, NAME, DESIGNATION, T/ON DUTY, OT DAYS, REMARKS)
       const dayColsWidth = availableWidth - fixedColsWidth;
-      const dayColWidth = Math.max(2.5, dayColsWidth / daysInMonth);
+      const dayColWidth = Math.max(2.5, dayColsWidth / daysInMonth); // Ensure minimum width for day columns
 
       // Define column styles to match reference format
       const columnStyles: { [key: number]: any } = {
@@ -561,6 +557,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       }
 
       // Calculate font size based on number of columns
+      const totalColumns = headers.length;
       const baseFontSize = Math.max(3, Math.min(6, 200 / totalColumns));
       const headerFontSize = Math.max(4, Math.min(7, 220 / totalColumns));
 
@@ -592,6 +589,7 @@ app.post("/api/export/xlsx", async (req, res) => {
           tableWidth: 'auto',
           // Enable horizontal scrolling for very wide tables
           horizontalPageBreak: true,
+          horizontalPageBreakWhen: 'after', // Break before the next row
           horizontalPageBreakRepeat: [0, 1, 2], // Repeat first 3 columns on new pages
           didDrawCell: function(data: any) {
             // Color code attendance cells with vibrant colors
@@ -645,6 +643,13 @@ app.post("/api/export/xlsx", async (req, res) => {
         console.error('Error generating PDF table:', tableError);
         return res.status(500).json({ message: "Failed to generate PDF table" });
       }
+
+      // Adjust page format if table is too wide for A4 landscape
+      const finalTableWidth = doc.autoTable.previous.finalStyle.tableWidth;
+      if (finalTableWidth > doc.internal.pageSize.getWidth() - 20) { // Check against usable width
+        doc.setPageFormat('a3'); // Switch to A3
+      }
+
 
       // Generate PDF buffer
       const pdfBuffer = Buffer.from(doc.output('arraybuffer'));

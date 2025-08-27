@@ -15,6 +15,9 @@ export interface IStorage {
   getAttendanceRecord(employeeId: string, month: number, year: number): Promise<AttendanceRecord | undefined>;
   createOrUpdateAttendance(attendance: InsertAttendance): Promise<AttendanceRecord>;
   getAttendanceForMonth(month: number, year: number): Promise<AttendanceRecord[]>;
+  // Settings operations
+  getSettings(): Promise<{ companyName: string; rigName: string }>;
+  updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }>;
 }
 
 export class SqliteStorage implements IStorage {
@@ -70,10 +73,25 @@ export class SqliteStorage implements IStorage {
         UNIQUE(employee_id, month, year)
       );
 
+      CREATE TABLE IF NOT EXISTS app_settings (
+        id TEXT PRIMARY KEY DEFAULT 'default',
+        company_name TEXT NOT NULL DEFAULT 'Siddik',
+        rig_name TEXT NOT NULL DEFAULT 'ROM-100-II',
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE INDEX IF NOT EXISTS idx_attendance_month_year ON attendance_records (month, year);
       CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance_records (employee_id);
       CREATE INDEX IF NOT EXISTS idx_employee_serial ON employees (serial_number);
     `);
+
+    // Initialize default settings if they don't exist
+    const defaultSettings = this.db.prepare(`
+      INSERT OR IGNORE INTO app_settings (id, company_name, rig_name)
+      VALUES ('default', 'Siddik', 'ROM-100-II')
+    `);
+    defaultSettings.run();
 
     // Migration: Add designation_order column if it doesn't exist
     try {
@@ -160,6 +178,14 @@ export class SqliteStorage implements IStorage {
         LEFT JOIN employees e ON ar.employee_id = e.id
         WHERE ar.month = ? AND ar.year = ?
         ORDER BY e.designation_order ASC, e.name ASC
+      `),
+
+      // Settings statements
+      getSettings: this.db.prepare('SELECT * FROM app_settings WHERE id = ?'),
+      updateSettings: this.db.prepare(`
+        UPDATE app_settings 
+        SET company_name = ?, rig_name = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
       `)
     };
   }
@@ -329,6 +355,33 @@ export class SqliteStorage implements IStorage {
       otDays: row.ot_days,
       remarks: row.remarks,
     };
+  }
+
+  // Settings operations
+  async getSettings(): Promise<{ companyName: string; rigName: string }> {
+    const row = this.statements.getSettings.get('default');
+    if (!row) {
+      // Return default settings if none exist
+      return { companyName: 'Siddik', rigName: 'ROM-100-II' };
+    }
+    return {
+      companyName: row.company_name,
+      rigName: row.rig_name
+    };
+  }
+
+  async updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }> {
+    const result = this.statements.updateSettings.run(
+      settings.companyName,
+      settings.rigName,
+      'default'
+    );
+
+    if (result.changes === 0) {
+      throw new Error('Failed to update settings');
+    }
+
+    return settings;
   }
 
   // Utility methods
