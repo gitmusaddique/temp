@@ -86,8 +86,11 @@ export default function AttendanceView() {
   const daysInMonth = getDaysInMonth(parseInt(selectedMonth), parseInt(selectedYear));
   const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-  // Get unique designations for filter (employees are already sorted by designation_order)
-  const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
+  // Get unique designations for filter in the same order as the database sorting
+  const designationOrder = ['Rig I/C', 'Shift I/C', 'Asst Shift I/C', 'Top Man', 'Rig Man'];
+  const employeeDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
+  const uniqueDesignations = designationOrder.filter(d => employeeDesignations.includes(d))
+    .concat(employeeDesignations.filter(d => !designationOrder.includes(d)));
 
   // Filter employees by designation while preserving database sort order
   const filteredEmployees = selectedDesignation === "all" 
@@ -99,7 +102,7 @@ export default function AttendanceView() {
     ? filteredEmployees 
     : filteredEmployees.filter(emp => emp.designation === modalDesignationFilter);
 
-  // Final display employees - filtered by selection if not showing all
+  // Final display employees - already sorted by database (designation_order ASC, name ASC)
   const displayEmployees = showAllEmployees 
     ? filteredEmployees
     : filteredEmployees.filter(emp => selectedEmployees.has(emp.id));

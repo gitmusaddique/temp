@@ -57,8 +57,11 @@ export default function Home() {
     },
   });
 
-  // Extract unique designations for the filter
-  const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean) as string[]));
+  // Extract unique designations for the filter in the same order as database sorting
+  const designationOrder = ['Rig I/C', 'Shift I/C', 'Asst Shift I/C', 'Top Man', 'Rig Man'];
+  const employeeDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean) as string[]));
+  const uniqueDesignations = designationOrder.filter(d => employeeDesignations.includes(d))
+    .concat(employeeDesignations.filter(d => !designationOrder.includes(d)));
 
   // Filter employees by search query and designation
   const filteredEmployees = employees.filter(emp => {

@@ -79,33 +79,41 @@ export class SqliteStorage implements IStorage {
     try {
       this.db.exec(`ALTER TABLE employees ADD COLUMN designation_order INTEGER DEFAULT 999;`);
       console.log('Added designation_order column to existing employees table');
-      
-      // Update ALL existing employees with proper designation order (not just those with 999)
-      const updateStmt = this.db.prepare(`
-        UPDATE employees 
-        SET designation_order = ? 
-        WHERE designation = ?
-      `);
-      
-      const designationNumbers: Record<string, number> = {
-        'Rig I/C': 1,
-        'Shift I/C': 2,
-        'Asst Shift I/C': 3,
-        'Top Man': 4,
-        'Rig Man': 5
-      };
-
-      for (const [designation, order] of Object.entries(designationNumbers)) {
-        const result = updateStmt.run(order, designation);
-        console.log(`Updated ${result.changes} employees with designation '${designation}' to order ${order}`);
-      }
-      
     } catch (error: any) {
       // Column already exists, ignore the error
       if (!error.message.includes('duplicate column name')) {
         console.error('Migration error:', error);
       }
     }
+
+    // Always update ALL existing employees with proper designation order
+    const updateStmt = this.db.prepare(`
+      UPDATE employees 
+      SET designation_order = ? 
+      WHERE designation = ?
+    `);
+    
+    const designationNumbers: Record<string, number> = {
+      'Rig I/C': 1,
+      'Shift I/C': 2,
+      'Asst Shift I/C': 3,
+      'Top Man': 4,
+      'Rig Man': 5
+    };
+
+    for (const [designation, order] of Object.entries(designationNumbers)) {
+      const result = updateStmt.run(order, designation);
+      console.log(`Updated ${result.changes} employees with designation '${designation}' to order ${order}`);
+    }
+
+    // Update any employees with null or unrecognized designations to order 999
+    const updateUnknownStmt = this.db.prepare(`
+      UPDATE employees 
+      SET designation_order = 999 
+      WHERE designation IS NULL OR designation NOT IN ('Rig I/C', 'Shift I/C', 'Asst Shift I/C', 'Top Man', 'Rig Man')
+    `);
+    const unknownResult = updateUnknownStmt.run();
+    console.log(`Updated ${unknownResult.changes} employees with unknown/null designations to order 999`);
   }
 
   private prepareStatements() {
