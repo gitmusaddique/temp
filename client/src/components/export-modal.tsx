@@ -29,7 +29,6 @@ export default function ExportModal({
   const [exportData, setExportData] = useState({
     month: defaultMonth,
     year: defaultYear,
-    format: "xlsx",
   });
   const { toast } = useToast();
 
@@ -51,7 +50,7 @@ export default function ExportModal({
   const handleExport = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch(`/api/export/${exportData.format}`, {
+      const response = await fetch(`/api/export/xlsx`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -66,7 +65,7 @@ export default function ExportModal({
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to export ${exportData.format.toUpperCase()}`);
+        throw new Error(`Failed to export Excel file`);
       }
 
       // Handle file download
@@ -77,7 +76,7 @@ export default function ExportModal({
 
       // Get filename from response headers or create default
       const contentDisposition = response.headers.get('Content-Disposition');
-      let filename = `attendance_${exportData.month}_${exportData.year}.${exportData.format}`;
+      let filename = `attendance_${exportData.month}_${exportData.year}.xlsx`;
       if (contentDisposition) {
         const filenameMatch = contentDisposition.match(/filename="([^"]+)"/);
         if (filenameMatch) {
@@ -93,14 +92,14 @@ export default function ExportModal({
 
       toast({
         title: "Success",
-        description: `${exportData.format.toUpperCase()} file downloaded successfully`,
+        description: `Excel file downloaded successfully`,
       });
 
       onClose();
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || `Failed to export ${exportData.format.toUpperCase()}`,
+        description: error.message || `Failed to export Excel file`,
         variant: "destructive",
       });
     } finally {
@@ -159,21 +158,14 @@ export default function ExportModal({
 
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2">Export Format</Label>
-            <RadioGroup
-              value={exportData.format}
-              onValueChange={(value) => setExportData({ ...exportData, format: value })}
-              className="space-y-2"
-              data-testid="radio-export-format"
-            >
+            <div className="p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="xlsx" id="xlsx" />
-                <Label htmlFor="xlsx" className="text-sm">Excel (XLSX)</Label>
+                <div className="w-4 h-4 bg-green-600 rounded-full flex items-center justify-center">
+                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                </div>
+                <Label className="text-sm font-medium">Excel (XLSX)</Label>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="pdf" id="pdf" />
-                <Label htmlFor="pdf" className="text-sm">PDF Document</Label>
-              </div>
-            </RadioGroup>
+            </div>
           </div>
 
           <div className="bg-blue-50 p-3 rounded-lg">
@@ -181,7 +173,7 @@ export default function ExportModal({
               <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2" />
               <div>
                 <p className="text-sm text-blue-800" data-testid="text-export-info">
-                  Export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with attendance grid for selected month/year.
+                  Excel export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with attendance grid for selected month/year.
                 </p>
               </div>
             </div>
