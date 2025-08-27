@@ -330,8 +330,11 @@ app.post("/api/export/xlsx", async (req, res) => {
 
       // Style each cell in the data row
       row.eachCell((cell, colNumber) => {
-        // Determine if this is the remarks column (last column)
+        // Determine which columns should not be bold (name, designation, remarks)
+        const isNameColumn = colNumber === 2;
+        const isDesignationColumn = colNumber === 3;
         const isRemarksColumn = colNumber === headers.length;
+        const shouldNotBeBold = isNameColumn || isDesignationColumn || isRemarksColumn;
         
         // Base style for all cells (including empty ones)
         const baseStyle = {
@@ -342,8 +345,8 @@ app.post("/api/export/xlsx", async (req, res) => {
             left: { style: 'thin' },
             right: { style: 'thin' }
           },
-          // Make all cells bold except remarks column
-          font: { bold: !isRemarksColumn }
+          // Make cells bold except for name, designation, and remarks columns
+          font: { bold: !shouldNotBeBold }
         };
 
         // Apply base style to all cells
