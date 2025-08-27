@@ -77,7 +77,7 @@ export default function Home() {
 
   const updateSettingsMutation = useMutation({
     mutationFn: async (settings: { companyName: string; rigName: string }) => {
-      await apiRequest("PUT", "/api/settings", settings);
+      await apiRequest("POST", "/api/settings", settings);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/settings"] });

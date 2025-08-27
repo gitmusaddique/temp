@@ -89,14 +89,15 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
   };
 
   const handleReset = () => {
-    // Reset to default values
-    setCompanyName("Siddik");
-    setRigName("ROM-100-II");
-    // Optionally, if you want to reset to the fetched default values, you can do:
-    // if (settingsData) {
-    //   setCompanyName(settingsData.companyName || "Siddik");
-    //   setRigName(settingsData.rigName || "ROM-100-II");
-    // }
+    // Reset to current database values
+    if (settingsData) {
+      setCompanyName(settingsData.companyName || "Siddik");
+      setRigName(settingsData.rigName || "ROM-100-II");
+    } else {
+      // Fallback to defaults if no data
+      setCompanyName("Siddik");
+      setRigName("ROM-100-II");
+    }
   };
 
   if (isLoading) return <Dialog open={isOpen} onOpenChange={onClose}><DialogContent><p>Loading settings...</p></DialogContent></Dialog>;
