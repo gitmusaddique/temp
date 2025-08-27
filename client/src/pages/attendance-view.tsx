@@ -33,6 +33,7 @@ export default function AttendanceView() {
   const [selectedCell, setSelectedCell] = useState<{employeeId: string, day: number, currentStatus: string} | null>(null);
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [showAllEmployees, setShowAllEmployees] = useState(true);
+  const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -312,7 +313,15 @@ export default function AttendanceView() {
               <div className="flex items-center space-x-2">
                 <Button
                   variant={showAllEmployees ? "default" : "outline"}
-                  onClick={() => setShowAllEmployees(!showAllEmployees)}
+                  onClick={() => {
+                    if (showAllEmployees) {
+                      setShowAllEmployees(false);
+                      setShowSelectionPanel(true);
+                    } else {
+                      setShowAllEmployees(true);
+                      setShowSelectionPanel(false);
+                    }
+                  }}
                   data-testid="button-toggle-employee-view"
                   className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-4 py-2"
                 >
@@ -334,7 +343,7 @@ export default function AttendanceView() {
       </div>
 
       {/* Employee Selection Panel */}
-      {!showAllEmployees && (
+      {!showAllEmployees && showSelectionPanel && (
         <div className="max-w-full mx-auto px-4 py-4">
           <Card className="mb-6">
             <CardHeader>
@@ -343,7 +352,7 @@ export default function AttendanceView() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => setShowAllEmployees(true)}
+                  onClick={() => setShowSelectionPanel(false)}
                   className="h-8 w-8 p-0"
                   data-testid="button-close-selection-panel"
                 >
