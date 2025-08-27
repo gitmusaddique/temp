@@ -34,6 +34,7 @@ export default function AttendanceView() {
   const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
   const [showAllEmployees, setShowAllEmployees] = useState(true);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
+  const [selectionDesignationFilter, setSelectionDesignationFilter] = useState("all");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -87,34 +88,22 @@ export default function AttendanceView() {
   // Get unique designations for filter
   const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
 
-  // Filter employees by designation first
+  // Filter employees by main designation filter
   const designationFilteredEmployees = selectedDesignation === "all" 
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
+
+  // Filter employees for selection dropdown by selection designation filter
+  const selectionFilteredEmployees = selectionDesignationFilter === "all"
+    ? employees
+    : employees.filter(emp => emp.designation === selectionDesignationFilter);
 
   // Then filter by selection if not showing all
   const displayEmployees = showAllEmployees 
     ? designationFilteredEmployees
     : designationFilteredEmployees.filter(emp => selectedEmployees.has(emp.id));
 
-  // Employee selection functions
-  const toggleEmployeeSelection = (employeeId: string) => {
-    const newSelected = new Set(selectedEmployees);
-    if (newSelected.has(employeeId)) {
-      newSelected.delete(employeeId);
-    } else {
-      newSelected.add(employeeId);
-    }
-    setSelectedEmployees(newSelected);
-  };
-
-  const selectAllEmployees = () => {
-    setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)));
-  };
-
-  const clearAllSelections = () => {
-    setSelectedEmployees(new Set());
-  };
+  
 
   // Reset selections when designation filter changes
   React.useEffect(() => {
@@ -124,6 +113,17 @@ export default function AttendanceView() {
       setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
     }
   }, [selectedDesignation, designationFilteredEmployees]);
+
+  // Toggle individual employee selection
+  const toggleEmployeeSelection = (employeeId: string) => {
+    const newSelected = new Set(selectedEmployees);
+    if (newSelected.has(employeeId)) {
+      newSelected.delete(employeeId);
+    } else {
+      newSelected.add(employeeId);
+    }
+    setSelectedEmployees(newSelected);
+  };
 
   // Get attendance status for a specific employee and day
   const getAttendanceStatus = (employeeId: string, day: number): string => {
@@ -332,38 +332,11 @@ export default function AttendanceView() {
                 
                 <Button
                   variant={showAllEmployees ? "default" : "outline"}
-                  onClick={() => {
-                    if (showAllEmployees && selectedEmployees.size === 0) {
-                      // If switching to "Show Selected" but no employees are selected, select all in current filter
-                      setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)));
-                    }
-                    setShowAllEmployees(!showAllEmployees);
-                  }}
+                  onClick={() => setShowAllEmployees(!showAllEmployees)}
                   data-testid="button-toggle-employee-view"
                 >
-                  {showAllEmployees ? "Show Selected" : "Show All"}
+                  {showAllEmployees ? "Select Employees" : "Show All"}
                 </Button>
-                
-                {!showAllEmployees && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={selectAllEmployees}
-                      data-testid="button-select-all"
-                    >
-                      Select All
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={clearAllSelections}
-                      data-testid="button-clear-all"
-                    >
-                      Clear All
-                    </Button>
-                  </>
-                )}
                 
                 <Button 
                   onClick={() => setShowExportModal(true)}
@@ -379,8 +352,93 @@ export default function AttendanceView() {
         </div>
       </div>
 
+      {/* Employee Selection Panel */}
+      {!showAllEmployees && (
+        <div className="max-w-full mx-auto px-4 py-4">
+          <Card className="mb-6">
+            <CardHeader>
+              <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4">
+                <Select value={selectionDesignationFilter} onValueChange={setSelectionDesignationFilter}>
+                  <SelectTrigger className="w-64" data-testid="select-selection-designation-filter">
+                    <SelectValue placeholder="Filter by designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Designations</SelectItem>
+                    {uniqueDesignations.map(designation => (
+                      <SelectItem key={designation} value={designation}>
+                        {designation}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
+                {selectionFilteredEmployees.map(employee => (
+                  <div 
+                    key={employee.id}
+                    className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                      selectedEmployees.has(employee.id)
+                        ? "border-blue-500 bg-blue-50 text-blue-900"
+                        : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                    }`}
+                    onClick={() => toggleEmployeeSelection(employee.id)}
+                    data-testid={`employee-selection-${employee.id}`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{employee.name}</p>
+                        <p className="text-xs text-gray-600">{employee.designation || "No designation"}</p>
+                      </div>
+                      {selectedEmployees.has(employee.id) && (
+                        <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-xs">✓</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              {selectionFilteredEmployees.length === 0 && (
+                <p className="text-center text-gray-500 py-8">
+                  No employees found for the selected designation filter.
+                </p>
+              )}
+              
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-sm text-gray-600">
+                  {selectedEmployees.size} employee(s) selected
+                </p>
+                <div className="space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedEmployees(new Set(selectionFilteredEmployees.map(emp => emp.id)))}
+                    data-testid="button-select-all-filtered"
+                  >
+                    Select All Filtered
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setSelectedEmployees(new Set())}
+                    data-testid="button-clear-all-selections"
+                  >
+                    Clear All
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       {/* Attendance Table */}
-      <div className="max-w-full mx-auto px-4 py-8">
+      <div className="max-w-full mx-auto px-4 py-8"></div>
         <Card className="overflow-hidden">
           <CardHeader className="text-center bg-gray-50 border-b">
             <CardTitle className="text-lg font-medium" data-testid="text-company-name">
@@ -398,11 +456,6 @@ export default function AttendanceView() {
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
-                    {!showAllEmployees && (
-                      <th className="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase border-r" data-testid="header-select">
-                        SELECT
-                      </th>
-                    )}
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase border-r" data-testid="header-sl-no">
                       SL.NO
                     </th>
@@ -431,11 +484,11 @@ export default function AttendanceView() {
                 <tbody className="divide-y divide-gray-200">
                   {displayEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={dayColumns.length + (showAllEmployees ? 6 : 7)} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
+                      <td colSpan={dayColumns.length + 6} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
                         {employees.length === 0 ? "No employees found. Add employees to view attendance." : 
                          designationFilteredEmployees.length === 0 ? "No employees match the selected designation." :
                          showAllEmployees ? "No employees match the selected designation." : 
-                         "No employees selected. Use the checkbox column to select employees or click 'Select All'."}
+                         "No employees selected. Use the employee selection panel above to select employees."}
                       </td>
                     </tr>
                   ) : (
@@ -445,16 +498,6 @@ export default function AttendanceView() {
                       
                       return (
                         <tr key={employee.id} className="hover:bg-gray-50" data-testid={`row-employee-${employee.id}`}>
-                          {!showAllEmployees && (
-                            <td className="px-2 py-2 text-center border-r" data-testid={`checkbox-select-${employee.id}`}>
-                              <input
-                                type="checkbox"
-                                checked={selectedEmployees.has(employee.id)}
-                                onChange={() => toggleEmployeeSelection(employee.id)}
-                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
-                              />
-                            </td>
-                          )}
                           <td className="px-2 py-2 text-sm border-r" data-testid={`text-serial-${employee.id}`}>
                             {employee.serialNumber}
                           </td>
@@ -466,30 +509,17 @@ export default function AttendanceView() {
                           </td>
                           {dayColumns.map(day => {
                             const status = getAttendanceStatus(employee.id, day);
-                            const isEmployeeSelected = showAllEmployees || selectedEmployees.has(employee.id);
                             return (
                               <td 
                                 key={day} 
-                                className={`px-1 py-2 text-center text-xs border-r ${
-                                  isEmployeeSelected 
-                                    ? `cursor-pointer hover:bg-blue-50 ${
-                                        status === "P" ? "bg-green-50 text-green-700" : 
-                                        status === "A" ? "bg-red-50 text-red-700" : 
-                                        status === "OT" ? "bg-yellow-50 text-yellow-800" : "hover:bg-gray-100"
-                                      }`
-                                    : `cursor-not-allowed bg-gray-100 text-gray-400 ${
-                                        status === "P" ? "bg-green-100 text-green-400" : 
-                                        status === "A" ? "bg-red-100 text-red-400" : 
-                                        status === "OT" ? "bg-yellow-100 text-yellow-400" : ""
-                                      }`
+                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer hover:bg-blue-50 ${
+                                  status === "P" ? "bg-green-50 text-green-700" : 
+                                  status === "A" ? "bg-red-50 text-red-700" : 
+                                  status === "OT" ? "bg-yellow-50 text-yellow-800" : "hover:bg-gray-100"
                                 }`}
-                                onClick={() => {
-                                  if (isEmployeeSelected) {
-                                    setSelectedCell({ employeeId: employee.id, day, currentStatus: status });
-                                  }
-                                }}
+                                onClick={() => setSelectedCell({ employeeId: employee.id, day, currentStatus: status })}
                                 data-testid={`cell-attendance-${employee.id}-${day}`}
-                                title={isEmployeeSelected ? "Click to edit attendance" : "Select employee to edit attendance"}
+                                title="Click to edit attendance"
                               >
                                 {status}
                               </td>
@@ -513,13 +543,8 @@ export default function AttendanceView() {
                                 }));
                                 debouncedUpdateRemarks(employee.id, newValue);
                               }}
-                              disabled={!showAllEmployees && !selectedEmployees.has(employee.id)}
-                              className={`w-full px-2 py-1 text-xs border rounded focus:outline-none ${
-                                !showAllEmployees && !selectedEmployees.has(employee.id)
-                                  ? "border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed"
-                                  : "border-gray-200 focus:ring-1 focus:ring-blue-500"
-                              }`}
-                              placeholder={(!showAllEmployees && !selectedEmployees.has(employee.id)) ? "Select employee to edit" : "Add remarks..."}
+                              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
+                              placeholder="Add remarks..."
                               data-testid={`input-remarks-${employee.id}`}
                             />
                           </td>
