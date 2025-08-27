@@ -120,7 +120,7 @@ export default function AttendanceView() {
   const getDesignationPriority = (designation: string | null): number => {
     if (!designation) return 999; // Put employees without designation at the end
     const index = designationHierarchy.findIndex(d => 
-      d.toLowerCase() === designation.toLowerCase()
+      d.toLowerCase().trim() === designation.toLowerCase().trim()
     );
     return index === -1 ? 500 : index; // Unknown designations in the middle
   };
@@ -130,17 +130,12 @@ export default function AttendanceView() {
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Sort by designation hierarchy, then by name
+  // Sort by designation hierarchy only
   const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
     const priorityA = getDesignationPriority(a.designation);
     const priorityB = getDesignationPriority(b.designation);
     
-    if (priorityA !== priorityB) {
-      return priorityA - priorityB;
-    }
-    
-    // If same priority, sort by name
-    return a.name.localeCompare(b.name);
+    return priorityA - priorityB;
   });
 
   // Filter employees for modal by modal designation filter
@@ -491,6 +486,15 @@ export default function AttendanceView() {
                   className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium px-3 py-1"
                 >
                   Clear All
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowSelectionPanel(false)}
+                  data-testid="button-cancel-selection"
+                  className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium px-3 py-1"
+                >
+                  Cancel
                 </Button>
               </div>
             </div>
