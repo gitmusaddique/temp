@@ -428,8 +428,8 @@ export default function AttendanceView() {
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "" 
-                      ? "bg-gray-100 text-gray-900 border-gray-600 shadow-sm" 
-                      : "bg-white text-gray-700 border-gray-400 hover:bg-gray-50 hover:border-gray-500"
+                      ? "bg-slate-100 text-slate-900 border-slate-700 shadow-sm" 
+                      : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
@@ -445,8 +445,8 @@ export default function AttendanceView() {
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "P" 
-                      ? "bg-green-100 text-green-800 border-green-600 shadow-sm" 
-                      : "bg-green-50 text-green-700 border-green-400 hover:bg-green-100 hover:border-green-500"
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-600 shadow-sm" 
+                      : "bg-emerald-50 text-emerald-700 border-emerald-400 hover:bg-emerald-100 hover:border-emerald-500"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
@@ -462,8 +462,8 @@ export default function AttendanceView() {
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "A" 
-                      ? "bg-red-100 text-red-800 border-red-600 shadow-sm" 
-                      : "bg-red-50 text-red-700 border-red-400 hover:bg-red-100 hover:border-red-500"
+                      ? "bg-rose-100 text-rose-800 border-rose-600 shadow-sm" 
+                      : "bg-rose-50 text-rose-700 border-rose-400 hover:bg-rose-100 hover:border-rose-500"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
@@ -479,8 +479,8 @@ export default function AttendanceView() {
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "OT" 
-                      ? "bg-yellow-100 text-yellow-900 border-yellow-600 shadow-sm" 
-                      : "bg-yellow-50 text-yellow-800 border-yellow-400 hover:bg-yellow-100 hover:border-yellow-500"
+                      ? "bg-amber-100 text-amber-900 border-amber-600 shadow-sm" 
+                      : "bg-amber-50 text-amber-800 border-amber-400 hover:bg-amber-100 hover:border-amber-500"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
