@@ -317,20 +317,6 @@ export default function AttendanceView() {
                 </SelectContent>
               </Select>
               <div className="flex items-center space-x-2">
-                <Select value={selectedDesignation} onValueChange={setSelectedDesignation}>
-                  <SelectTrigger className="w-48" data-testid="select-designation-filter-attendance">
-                    <SelectValue placeholder="Filter by designation" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Designations</SelectItem>
-                    {uniqueDesignations.map(designation => (
-                      <SelectItem key={designation} value={designation}>
-                        {designation}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                
                 <Button
                   variant={showAllEmployees ? "default" : "outline"}
                   onClick={() => {
