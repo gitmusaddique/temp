@@ -317,20 +317,6 @@ export default function AttendanceView() {
                 </SelectContent>
               </Select>
               <div className="flex items-center space-x-2">
-                <Button
-                  variant={showAllEmployees ? "default" : "outline"}
-                  onClick={() => {
-                    setShowAllEmployees(!showAllEmployees);
-                    if (showAllEmployees) {
-                      setHideSelectionPanel(false); // Show panel when switching to select mode
-                    }
-                  }}
-                  data-testid="button-toggle-employee-view"
-                  className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-4 py-2"
-                >
-                  Select Employees
-                </Button>
-                
                 {!showAllEmployees && hideSelectionPanel && (
                   <Button
                     variant="outline"
