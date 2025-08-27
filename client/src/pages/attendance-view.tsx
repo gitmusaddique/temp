@@ -130,10 +130,14 @@ export default function AttendanceView() {
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Sort employees by designation hierarchy first, then by name within each designation
-  const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
-    // Define designation hierarchy order with more comprehensive mapping
-    const designationOrder: Record<string, number> = {
+  // Function to get designation number for sorting
+  const getDesignationNumber = (designation: string | null): number => {
+    if (!designation) return 999; // No designation goes to the end
+    
+    const designationLower = designation.toLowerCase().trim();
+    
+    // Core hierarchy mapping with unique numbers
+    const designationNumbers: Record<string, number> = {
       'rig ic': 1,
       'shift ic': 2,
       'ass shift ic': 3,
@@ -145,16 +149,18 @@ export default function AttendanceView() {
       'rig man': 5
     };
 
-    // Get designation order (case insensitive), default to 999 for unknown designations
-    const aDesignation = a.designation?.toLowerCase().trim() || '';
-    const bDesignation = b.designation?.toLowerCase().trim() || '';
-    
-    const aOrder = designationOrder[aDesignation] || 999;
-    const bOrder = designationOrder[bDesignation] || 999;
+    return designationNumbers[designationLower] || 999;
+  };
 
-    // First sort by designation hierarchy
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
+  // Sort employees by designation number first, then by name within each designation
+  const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
+    // Get designation numbers for sorting
+    const aNumber = getDesignationNumber(a.designation);
+    const bNumber = getDesignationNumber(b.designation);
+
+    // First sort by designation number (lower number = higher priority)
+    if (aNumber !== bNumber) {
+      return aNumber - bNumber;
     }
 
     // Within same designation, sort alphabetically by name
