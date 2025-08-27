@@ -209,15 +209,7 @@ export default function Home() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button 
-                onClick={() => setShowCreateModal(true)}
-                className="bg-primary hover:bg-primary-light text-white"
-                data-testid="button-add-employee"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                Add Employee
-              </Button>
-            </div>
+              </div>
           </div>
 
           {isLoading ? (
