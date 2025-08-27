@@ -338,7 +338,18 @@ export default function AttendanceView() {
         <div className="max-w-full mx-auto px-4 py-4">
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowAllEmployees(true)}
+                  className="h-8 w-8 p-0"
+                  data-testid="button-close-selection-panel"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-64 overflow-y-auto">
