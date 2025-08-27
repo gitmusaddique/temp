@@ -196,7 +196,7 @@ export default function ExportModal({
               ) : (
                 <>
                   <Download className="w-4 h-4 mr-2" />
-                  Export {exportData.format.toUpperCase()}
+                  Export XLSX
                 </>
               )}
             </Button>
