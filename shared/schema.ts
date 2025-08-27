@@ -3,6 +3,14 @@ import { pgTable, text, varchar, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
+export const DESIGNATION_OPTIONS = [
+  "Rig I/C",
+  "Shift I/C", 
+  "Asst Shift I/C",
+  "Top Man",
+  "Rig Man"
+] as const;
+
 export const employees = pgTable("employees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   employeeId: text("employee_id").notNull().unique(),
@@ -20,7 +28,7 @@ export const insertEmployeeSchema = createInsertSchema(employees).pick({
   status: true,
 }).extend({
   name: z.string().min(1, "Name is required"),
-  designation: z.string().min(1, "Designation is required"),
+  designation: z.enum(DESIGNATION_OPTIONS),
   designationOrder: z.number().min(1).default(999),
   status: z.enum(["Active", "Inactive"]).default("Active"),
 });

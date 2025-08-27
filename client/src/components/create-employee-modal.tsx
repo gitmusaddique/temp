@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { DESIGNATION_OPTIONS } from "@shared/schema";
 import { X } from "lucide-react";
 
 interface CreateEmployeeModalProps {
@@ -24,18 +25,14 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
 
   const getDesignationOrder = (designation: string): number => {
     const designationNumbers: Record<string, number> = {
-      'rig ic': 1,
-      'shift ic': 2,
-      'ass shift ic': 3,
-      'asst shift ic': 3,
-      'assistant shift ic': 3,
-      'topman': 4,
-      'top man': 4,
-      'rigman': 5,
-      'rig man': 5
+      'Rig I/C': 1,
+      'Shift I/C': 2,
+      'Asst Shift I/C': 3,
+      'Top Man': 4,
+      'Rig Man': 5
     };
 
-    return designationNumbers[designation.toLowerCase().trim()] || 999;
+    return designationNumbers[designation] || 999;
   };
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -93,13 +90,7 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
     onClose();
   };
 
-  const designationOptions = [
-    "Rig I/C",
-    "Shift I/C",
-    "Asst.Shift I/C",
-    "Top-Man",
-    "Rig-Man",
-  ];
+  const designationOptions = DESIGNATION_OPTIONS;
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>

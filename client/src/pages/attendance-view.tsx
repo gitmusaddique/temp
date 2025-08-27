@@ -89,42 +89,6 @@ export default function AttendanceView() {
   // Get unique designations for filter
   const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
 
-  // Define designation hierarchy (higher positions first as requested)
-  const designationHierarchy = [
-    "Rig IC",
-    "Shift IC", 
-    "Asst Shift IC",
-    "Top Man",
-    "Managing Director",
-    "Director",
-    "General Manager",
-    "Assistant General Manager",
-    "Manager",
-    "Assistant Manager",
-    "Senior Executive",
-    "Executive",
-    "Assistant Executive",
-    "Senior Officer",
-    "Officer",
-    "Assistant Officer",
-    "Senior Clerk",
-    "Clerk",
-    "Assistant Clerk",
-    "Senior Assistant",
-    "Assistant",
-    "Trainee",
-    "Rig Man"
-  ];
-
-  // Function to get designation priority (lower number = higher priority)
-  const getDesignationPriority = (designation: string | null): number => {
-    if (!designation) return 999; // Put employees without designation at the end
-    const index = designationHierarchy.findIndex(d => 
-      d.toLowerCase().trim() === designation.toLowerCase().trim()
-    );
-    return index === -1 ? 500 : index; // Unknown designations in the middle
-  };
-
   // Filter employees by main designation filter (employees are already sorted by database)
   const designationFilteredEmployees = selectedDesignation === "all" 
     ? employees 
