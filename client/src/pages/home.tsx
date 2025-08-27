@@ -226,49 +226,51 @@ export default function Home() {
             </div>
           </div>
 
-          {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <Card key={i} className="animate-pulse">
-                  <CardContent className="p-6">
-                    <div className="h-20 bg-gray-200 rounded"></div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : filteredEmployees.length === 0 ? (
-            <Card className="text-center py-12">
-              <CardContent>
-                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Building className="w-8 h-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium mb-2" data-testid="text-no-employees">
-                  {searchQuery || selectedDesignation !== "all" || statusFilter !== "all" ? "No employees found" : "No employees yet"}
-                </h3>
-                <p className="text-gray-600 mb-4">
-                  {searchQuery || selectedDesignation !== "all" || statusFilter !== "all"
-                    ? "Try adjusting your search or filter terms"
-                    : "Start by adding your first employee to the system"
-                  }
-                </p>
-                {!searchQuery && selectedDesignation === "all" && statusFilter === "all" && (
-                  <Button onClick={() => setShowCreateModal(true)} data-testid="button-add-first-employee">
-                    Add Employee
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredEmployees.map((employee) => (
-                <EmployeeCard
-                  key={employee.id}
-                  employee={employee}
-                  onDelete={() => handleDeleteEmployee(employee)}
-                />
-              ))}
-            </div>
-          )}
+          <div className="max-h-[calc(100vh-400px)] overflow-y-auto">
+            {isLoading ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[...Array(6)].map((_, i) => (
+                  <Card key={i} className="animate-pulse">
+                    <CardContent className="p-6">
+                      <div className="h-20 bg-gray-200 rounded"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredEmployees.length === 0 ? (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <Building className="w-8 h-8 text-gray-400" />
+                  </div>
+                  <h3 className="text-lg font-medium mb-2" data-testid="text-no-employees">
+                    {searchQuery || selectedDesignation !== "all" || statusFilter !== "all" ? "No employees found" : "No employees yet"}
+                  </h3>
+                  <p className="text-gray-600 mb-4">
+                    {searchQuery || selectedDesignation !== "all" || statusFilter !== "all"
+                      ? "Try adjusting your search or filter terms"
+                      : "Start by adding your first employee to the system"
+                    }
+                  </p>
+                  {!searchQuery && selectedDesignation === "all" && statusFilter === "all" && (
+                    <Button onClick={() => setShowCreateModal(true)} data-testid="button-add-first-employee">
+                      Add Employee
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-4">
+                {filteredEmployees.map((employee) => (
+                  <EmployeeCard
+                    key={employee.id}
+                    employee={employee}
+                    onDelete={() => handleDeleteEmployee(employee)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
