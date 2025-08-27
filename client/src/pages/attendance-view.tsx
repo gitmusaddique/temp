@@ -541,11 +541,11 @@ export default function AttendanceView() {
         <Card className="overflow-hidden">
           <CardHeader className="text-center bg-gray-50 border-b">
             <CardTitle className="text-lg font-medium" data-testid="text-company-name">
-              {appSettings.companyName}
+              {appSettings?.companyName || "Loading..."}
             </CardTitle>
             <p className="text-sm text-gray-600">Attendance</p>
             <p className="text-sm font-medium" data-testid="text-attendance-period">
-              {appSettings.rigName} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+              {appSettings?.rigName || "Loading..."} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
               MONTH:-{monthNames[parseInt(selectedMonth) - 1].toUpperCase()}. {selectedYear}
             </p>
           </CardHeader>
