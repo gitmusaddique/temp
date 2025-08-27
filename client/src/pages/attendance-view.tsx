@@ -718,6 +718,9 @@ export default function AttendanceView() {
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b sticky top-0 z-10">
                   <tr>
+                    <th className="px-2 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-select">
+                      SELECT
+                    </th>
                     <th className="px-2 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-sl-no">
                       SL.NO
                     </th>
@@ -749,7 +752,7 @@ export default function AttendanceView() {
                 <tbody className="divide-y divide-gray-200">
                   {displayEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={dayColumns.length + 7} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
+                      <td colSpan={dayColumns.length + 8} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
                         {employees.length === 0 ? "No employees found. Add employees to view attendance." : 
                          filteredEmployees.length === 0 ? "No employees match the selected designation." :
                          showAllEmployees ? "No active employees found for the selected designation." : 
@@ -764,12 +767,18 @@ export default function AttendanceView() {
                       return (
                         <tr 
                           key={employee.id} 
-                          className={`hover:bg-gray-50 cursor-pointer ${
-                            selectedRowId === employee.id ? 'bg-blue-100 border-2 border-blue-500' : ''
-                          }`} 
+                          className="hover:bg-gray-50" 
                           data-testid={`row-employee-${employee.id}`}
-                          onClick={() => setSelectedRowId(selectedRowId === employee.id ? null : employee.id)}
                         >
+                          <td className="px-2 py-2 text-sm border-r text-center" data-testid={`radio-select-${employee.id}`}>
+                            <input
+                              type="radio"
+                              name="selectedEmployee"
+                              checked={selectedRowId === employee.id}
+                              onChange={() => setSelectedRowId(employee.id)}
+                              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                            />
+                          </td>
                           <td className="px-2 py-2 text-sm border-r" data-testid={`text-serial-${employee.id}`}>
                             {index + 1}
                           </td>
@@ -1021,11 +1030,22 @@ export default function AttendanceView() {
             <div className="space-y-3">
               <p className="text-sm font-medium text-gray-700">Fill Range With:</p>
               
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  onClick={handleBulkClear}
+                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                  variant="outline"
+                  className="border-2 border-slate-400 text-slate-600 hover:bg-slate-50 hover:border-slate-500"
+                  data-testid="button-fill-blank"
+                >
+                  Blank
+                </Button>
+                
                 <Button
                   onClick={() => handleBulkFill("P")}
                   disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  variant="outline"
+                  className="border-2 border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500"
                   data-testid="button-fill-present"
                 >
                   Present (P)
@@ -1034,7 +1054,8 @@ export default function AttendanceView() {
                 <Button
                   onClick={() => handleBulkFill("A")}
                   disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                  className="bg-red-600 hover:bg-red-700 text-white"
+                  variant="outline"
+                  className="border-2 border-rose-400 text-rose-700 hover:bg-rose-50 hover:border-rose-500"
                   data-testid="button-fill-absent"
                 >
                   Absent (A)
@@ -1043,22 +1064,13 @@ export default function AttendanceView() {
                 <Button
                   onClick={() => handleBulkFill("OT")}
                   disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                  className="bg-yellow-600 hover:bg-yellow-700 text-white"
+                  variant="outline"
+                  className="border-2 border-amber-400 text-amber-800 hover:bg-amber-50 hover:border-amber-500"
                   data-testid="button-fill-overtime"
                 >
                   Overtime (OT)
                 </Button>
               </div>
-
-              <Button
-                onClick={handleBulkClear}
-                disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                variant="outline"
-                className="w-full border-2 border-gray-400 hover:bg-gray-50"
-                data-testid="button-clear-range"
-              >
-                Clear Range
-              </Button>
             </div>
 
             {bulkUpdateAttendanceMutation.isPending && (
