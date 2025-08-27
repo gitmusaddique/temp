@@ -542,14 +542,6 @@ export default function AttendanceView() {
                   <Download className="w-4 h-4 mr-2" />
                   Export
                 </Button>
-                
-                <Button 
-                  onClick={() => setShowDateRangeModal(true)}
-                  className="bg-green-600 hover:bg-green-700 text-white"
-                  data-testid="button-bulk-operations"
-                >
-                  Bulk Operations
-                </Button>
               </div>
             </div>
           </div>
@@ -775,7 +767,10 @@ export default function AttendanceView() {
                               type="radio"
                               name="selectedEmployee"
                               checked={selectedRowId === employee.id}
-                              onChange={() => setSelectedRowId(employee.id)}
+                              onChange={() => {
+                                setSelectedRowId(employee.id);
+                                setShowDateRangeModal(true);
+                              }}
                               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                             />
                           </td>
@@ -963,7 +958,14 @@ export default function AttendanceView() {
       />
 
       {/* Bulk Operations Modal */}
-      <Dialog open={showDateRangeModal} onOpenChange={setShowDateRangeModal}>
+      <Dialog open={showDateRangeModal} onOpenChange={(open) => {
+        if (!open) {
+          setShowDateRangeModal(false);
+          setSelectedRowId(null);
+          setStartDate("");
+          setEndDate("");
+        }
+      }}>
         <DialogContent className="max-w-md" aria-describedby="bulk-operations-description">
           <DialogHeader>
             <DialogTitle>Bulk Operations</DialogTitle>
@@ -1077,7 +1079,7 @@ export default function AttendanceView() {
               <p className="text-sm text-gray-500 text-center">Updating attendance...</p>
             )}
 
-            <div className="flex justify-end pt-4 border-t">
+            <div className="flex justify-end space-x-2 pt-4 border-t">
               <Button
                 onClick={() => {
                   setShowDateRangeModal(false);
@@ -1086,9 +1088,24 @@ export default function AttendanceView() {
                   setEndDate("");
                 }}
                 variant="outline"
+                className="bg-gray-600 hover:bg-gray-700 text-white border-2 border-gray-600 hover:border-gray-700 font-medium px-4 py-2"
                 data-testid="button-cancel-bulk"
               >
                 Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  setShowDateRangeModal(false);
+                  setSelectedRowId(null);
+                  setStartDate("");
+                  setEndDate("");
+                }}
+                variant="outline"
+                className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium px-4 py-2"
+                data-testid="button-close-bulk"
+              >
+                <X className="w-4 h-4 mr-2" />
+                Close
               </Button>
             </div>
           </div>
