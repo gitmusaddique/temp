@@ -13,6 +13,7 @@ import CreateEmployeeModal from "@/components/create-employee-modal";
 import ExportModal from "@/components/export-modal";
 import DeleteConfirmationModal from "@/components/delete-confirmation-modal";
 import EditEmployeeModal from "@/components/edit-employee-modal";
+import SettingsModal from "@/components/settings-modal";
 import { Building, Download, CalendarDays, Search, Plus, Bell, Settings, User, Pencil, Trash2 } from "lucide-react";
 import {
   Select,
@@ -31,6 +32,18 @@ export default function Home() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [appSettings, setAppSettings] = useState(() => {
+    const saved = localStorage.getItem('appSettings');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return { companyName: "Siddik", rigName: "ROM-100-II" };
+      }
+    }
+    return { companyName: "Siddik", rigName: "ROM-100-II" };
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -85,6 +98,10 @@ export default function Home() {
     }
   };
 
+  const handleSettingsUpdate = (settings: { companyName: string; rigName: string }) => {
+    setAppSettings(settings);
+  };
+
   return (
     <div className="min-h-screen bg-surface">
       {/* Header */}
@@ -97,7 +114,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
-                  Siddik
+                  {appSettings.companyName}
                 </h1>
                 <p className="text-xs text-gray-600">Attendance Management</p>
               </div>
@@ -115,6 +132,7 @@ export default function Home() {
                 variant="ghost"
                 size="icon"
                 className="rounded-full"
+                onClick={() => setShowSettingsModal(true)}
                 data-testid="button-settings"
               >
                 <Settings className="w-5 h-5 text-gray-600" />
@@ -348,6 +366,12 @@ export default function Home() {
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         employee={selectedEmployee}
+      />
+
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onSettingsUpdate={handleSettingsUpdate}
       />
     </div>
   );

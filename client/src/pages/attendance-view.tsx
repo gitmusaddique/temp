@@ -4,10 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Download, X } from "lucide-react";
+import { ArrowLeft, Download, X, Bell, Settings, Building } from "lucide-react";
 import { Link } from "wouter";
 import type { Employee, AttendanceRecord } from "@shared/schema";
 import ExportModal from "@/components/export-modal";
+import SettingsModal from "@/components/settings-modal";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,6 +38,18 @@ export default function AttendanceView() {
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
   const [modalStatusFilter, setModalStatusFilter] = useState("all"); // Added for status filtering in modal
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [appSettings, setAppSettings] = useState(() => {
+    const saved = localStorage.getItem('appSettings');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch {
+        return { companyName: "Siddik", rigName: "ROM-100-II" };
+      }
+    }
+    return { companyName: "Siddik", rigName: "ROM-100-II" };
+  });
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -279,29 +292,69 @@ export default function AttendanceView() {
     }
   });
 
+  const handleSettingsUpdate = (settings: { companyName: string; rigName: string }) => {
+    setAppSettings(settings);
+  };
+
   return (
     <div className="min-h-screen bg-surface">
       {/* Header */}
-      <div className="bg-white shadow-material">
-        <div className="max-w-full mx-auto px-4 py-4">
-          <div className="flex justify-between items-center">
-            <div className="flex items-center space-x-4">
+      <header className="bg-white shadow-material sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
               <Link href="/">
                 <Button variant="ghost" size="icon" data-testid="button-back">
                   <ArrowLeft className="w-5 h-5" />
                 </Button>
               </Link>
-              <div>
-                <h2 className="text-2xl font-medium" data-testid="text-attendance-title">Monthly Attendance</h2>
-                <p className="text-sm text-gray-600" data-testid="text-selected-period">
-                  {monthNames[parseInt(selectedMonth) - 1]} {selectedYear}
-                </p>
-                {!showAllEmployees && (
-                  <p className="text-xs text-blue-600" data-testid="text-selection-status">
-                    {selectedEmployees.size} of {filteredEmployees.length} employees selected
-                  </p>
-                )}
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <Building className="w-4 h-4 text-white" />
               </div>
+              <div>
+                <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
+                  {appSettings.companyName}
+                </h1>
+                <p className="text-xs text-gray-600">Attendance Management</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                data-testid="button-notifications"
+              >
+                <Bell className="w-5 h-5 text-gray-600" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={() => setShowSettingsModal(true)}
+                data-testid="button-settings"
+              >
+                <Settings className="w-5 h-5 text-gray-600" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Sub Header */}
+      <div className="bg-gray-50 border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h2 className="text-2xl font-medium" data-testid="text-attendance-title">Monthly Attendance</h2>
+              <p className="text-sm text-gray-600" data-testid="text-selected-period">
+                {monthNames[parseInt(selectedMonth) - 1]} {selectedYear}
+              </p>
+              {!showAllEmployees && (
+                <p className="text-xs text-blue-600" data-testid="text-selection-status">
+                  {selectedEmployees.size} of {filteredEmployees.length} employees selected
+                </p>
+              )}
             </div>
             <div className="flex items-center space-x-2">
               <Select value={selectedYear} onValueChange={setSelectedYear}>
@@ -487,11 +540,11 @@ export default function AttendanceView() {
         <Card className="overflow-hidden">
           <CardHeader className="text-center bg-gray-50 border-b">
             <CardTitle className="text-lg font-medium" data-testid="text-company-name">
-              South Asia Consultancy
+              {appSettings.companyName}
             </CardTitle>
             <p className="text-sm text-gray-600">Attendance</p>
             <p className="text-sm font-medium" data-testid="text-attendance-period">
-              ROM-100-II &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+              {appSettings.rigName} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
               MONTH:-{monthNames[parseInt(selectedMonth) - 1].toUpperCase()}. {selectedYear}
             </p>
           </CardHeader>
@@ -734,6 +787,12 @@ export default function AttendanceView() {
           </DialogContent>
         </Dialog>
       )}
+
+      <SettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        onSettingsUpdate={handleSettingsUpdate}
+      />
     </div>
   );
 }

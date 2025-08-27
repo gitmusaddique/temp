@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,19 @@ export default function ExportModal({
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
+  const [appSettings, setAppSettings] = useState({ companyName: "Siddik", rigName: "ROM-100-II" });
+
+  useEffect(() => {
+    const saved = localStorage.getItem('appSettings');
+    if (saved) {
+      try {
+        setAppSettings(JSON.parse(saved));
+      } catch {
+        setAppSettings({ companyName: "Siddik", rigName: "ROM-100-II" });
+      }
+    }
+  }, [isOpen]);
+
 
   const handleExport = async () => {
     try {
@@ -47,6 +60,8 @@ export default function ExportModal({
           month: parseInt(exportData.month),
           year: parseInt(exportData.year),
           selectedEmployees: showAllEmployees ? undefined : Array.from(selectedEmployees),
+          companyName: appSettings.companyName,
+          rigName: appSettings.rigName
         }),
       });
 
