@@ -21,8 +21,8 @@ interface ExportModalProps {
 export default function ExportModal({ 
   isOpen, 
   onClose, 
-  defaultMonth = "3", 
-  defaultYear = "2025", 
+  defaultMonth = new Date().getMonth() + 1 <= 12 ? (new Date().getMonth() + 1).toString() : "12", 
+  defaultYear = new Date().getFullYear().toString(), 
   selectedEmployees = new Set(),
   showAllEmployees = true 
 }: ExportModalProps) {
