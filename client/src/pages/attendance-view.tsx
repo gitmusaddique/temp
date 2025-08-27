@@ -116,6 +116,15 @@ export default function AttendanceView() {
     setSelectedEmployees(new Set());
   };
 
+  // Reset selections when designation filter changes
+  React.useEffect(() => {
+    if (selectedDesignation !== "all") {
+      // Clear selections that are no longer in the filtered list
+      const filteredIds = new Set(designationFilteredEmployees.map(emp => emp.id));
+      setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
+    }
+  }, [selectedDesignation, designationFilteredEmployees]);
+
   // Get attendance status for a specific employee and day
   const getAttendanceStatus = (employeeId: string, day: number): string => {
     const record = attendanceRecords.find(r => r.employeeId === employeeId);
@@ -323,7 +332,13 @@ export default function AttendanceView() {
                 
                 <Button
                   variant={showAllEmployees ? "default" : "outline"}
-                  onClick={() => setShowAllEmployees(!showAllEmployees)}
+                  onClick={() => {
+                    if (showAllEmployees && selectedEmployees.size === 0) {
+                      // If switching to "Show Selected" but no employees are selected, select all in current filter
+                      setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)));
+                    }
+                    setShowAllEmployees(!showAllEmployees);
+                  }}
                   data-testid="button-toggle-employee-view"
                 >
                   {showAllEmployees ? "Show Selected" : "Show All"}
@@ -418,7 +433,9 @@ export default function AttendanceView() {
                     <tr>
                       <td colSpan={dayColumns.length + (showAllEmployees ? 6 : 7)} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
                         {employees.length === 0 ? "No employees found. Add employees to view attendance." : 
-                         showAllEmployees ? "No employees match the selected designation." : "No employees selected. Use the controls above to select employees."}
+                         designationFilteredEmployees.length === 0 ? "No employees match the selected designation." :
+                         showAllEmployees ? "No employees match the selected designation." : 
+                         "No employees selected. Use the checkbox column to select employees or click 'Select All'."}
                       </td>
                     </tr>
                   ) : (
