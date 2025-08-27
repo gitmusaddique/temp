@@ -7,8 +7,7 @@ import { z } from "zod";
 // Static imports for export functionality
 // import * as XLSX from 'xlsx';
 import ExcelJS from 'exceljs';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import puppeteer from 'puppeteer';
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Employee routes
@@ -433,7 +432,7 @@ app.post("/api/export/xlsx", async (req, res) => {
   }
 });
 
-  // PDF Export using Excel-like generation approach
+  // PDF Export using HTML-to-PDF conversion
   app.post("/api/export/pdf", async (req, res) => {
     try {
       const { month, year, selectedEmployees } = req.body;
@@ -484,19 +483,127 @@ app.post("/api/export/xlsx", async (req, res) => {
       // Get settings for export headers
       const appSettings = await storage.getSettings();
 
-      // Prepare headers
-      const headers = [
-        "SL.NO",
-        "NAME",
-        "DESIGNATION",
-        ...dayColumns.map(day => day.toString()),
-        "T/ON DUTY",
-        "OT DAYS",
-        "REMARKS"
-      ];
+      // Create HTML table with Excel-like styling
+      const totalColumns = 3 + daysInMonth + 3; // SL.NO, NAME, DESIGNATION + days + T/ON DUTY, OT DAYS, REMARKS
+      
+      // Calculate optimal font size based on number of columns
+      const baseFontSize = Math.max(6, Math.min(10, 400 / totalColumns));
+      
+      let html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            * { margin: 0; padding: 0; box-sizing: border-box; }
+            body { 
+              font-family: Arial, sans-serif; 
+              font-size: ${baseFontSize}px;
+              margin: 10px;
+            }
+            .header {
+              text-align: center;
+              margin-bottom: 20px;
+            }
+            .company-name {
+              font-size: ${Math.max(14, baseFontSize + 4)}px;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .attendance-title {
+              font-size: ${Math.max(12, baseFontSize + 2)}px;
+              font-weight: bold;
+              margin-bottom: 5px;
+            }
+            .month-info {
+              font-size: ${Math.max(10, baseFontSize)}px;
+              font-weight: bold;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              table-layout: fixed;
+            }
+            th, td {
+              border: 1px solid #000;
+              padding: 2px;
+              text-align: center;
+              vertical-align: middle;
+              font-size: ${baseFontSize}px;
+              word-wrap: break-word;
+            }
+            th {
+              background-color: #e6e6e6;
+              font-weight: bold;
+              font-size: ${Math.max(baseFontSize - 1, 5)}px;
+            }
+            .sl-no {
+              width: ${Math.max(3, 100/totalColumns * 1.5)}%;
+              font-weight: bold;
+            }
+            .name {
+              width: ${Math.max(8, 100/totalColumns * 4)}%;
+              text-align: left;
+            }
+            .designation {
+              width: ${Math.max(6, 100/totalColumns * 3)}%;
+              text-align: left;
+            }
+            .day {
+              width: ${Math.max(1.5, 100/totalColumns * 0.8)}%;
+            }
+            .total-duty {
+              width: ${Math.max(4, 100/totalColumns * 2)}%;
+            }
+            .ot-days {
+              width: ${Math.max(3, 100/totalColumns * 1.5)}%;
+            }
+            .remarks {
+              width: ${Math.max(8, 100/totalColumns * 4)}%;
+              text-align: left;
+            }
+            .present { background-color: #e6ffe6; }
+            .absent { background-color: #ffe6e6; }
+            .overtime { background-color: #ffffc8; }
+            .leave { background-color: #e6e6ff; }
+            .holiday { background-color: #f0f0f0; }
+            @media print {
+              body { margin: 0; }
+              @page { 
+                size: ${totalColumns > 35 ? 'A3' : 'A4'} landscape; 
+                margin: 10mm; 
+              }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="company-name">${appSettings.companyName}</div>
+            <div class="attendance-title">Attendance</div>
+            <div class="month-info">${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th class="sl-no">SL.NO</th>
+                <th class="name">NAME</th>
+                <th class="designation">DESIGNATION</th>`;
 
-      // Create Excel-like data structure
-      const excelData = employees.map((employee, index) => {
+      // Add day headers
+      for (let day = 1; day <= daysInMonth; day++) {
+        html += `<th class="day">${day}</th>`;
+      }
+
+      html += `
+                <th class="total-duty">T/ON DUTY</th>
+                <th class="ot-days">OT DAYS</th>
+                <th class="remarks">REMARKS</th>
+              </tr>
+            </thead>
+            <tbody>`;
+
+      // Add employee rows
+      employees.forEach((employee, index) => {
         const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
         let attendanceData: Record<string, string> = {};
 
@@ -516,166 +623,92 @@ app.post("/api/export/xlsx", async (req, res) => {
         const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
         const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
 
-        const rowData = [
-          index + 1,
-          employee.name || '',
-          employee.designation || ''
-        ];
+        html += `
+              <tr>
+                <td class="sl-no">${index + 1}</td>
+                <td class="name">${employee.name || ''}</td>
+                <td class="designation">${employee.designation || ''}</td>`;
 
-        // Add day columns
-        dayColumns.forEach(day => {
+        // Add day columns with proper styling
+        for (let day = 1; day <= daysInMonth; day++) {
           const status = attendanceData[day.toString()];
           const isBlank = !status || status === '' || status === null || status === undefined ||
                          status.toString().trim() === '' || status.toString().toLowerCase() === 'blank';
 
-          if (isBlank) {
-            rowData.push('');
-          } else {
+          let cellClass = 'day';
+          let cellValue = '';
+
+          if (!isBlank) {
             switch(status) {
-              case 'P': case 'Present': rowData.push('P'); break;
-              case 'A': case 'Absent': rowData.push('A'); break;
-              case 'OT': case 'Overtime': rowData.push('OT'); break;
-              case 'L': case 'Leave': rowData.push('L'); break;
-              case 'H': case 'Holiday': rowData.push('H'); break;
-              default: rowData.push(status);
-            }
-          }
-        });
-
-        rowData.push(presentDays, otDays, attendanceRecord?.remarks || '');
-        return rowData;
-      });
-
-      // Create PDF document with landscape orientation and dynamic sizing
-      const totalColumns = headers.length;
-      let orientation: 'landscape' | 'portrait' = 'landscape';
-      let format: string = 'a4';
-      
-      // Determine optimal page size and orientation
-      if (totalColumns > 35) {
-        format = 'a3';
-      } else if (totalColumns > 25) {
-        format = 'a4';
-        orientation = 'landscape';
-      }
-
-      const doc = new jsPDF({
-        orientation,
-        unit: 'mm',
-        format
-      });
-
-      const pageWidth = doc.internal.pageSize.width;
-      const pageHeight = doc.internal.pageSize.height;
-      const margin = 10;
-      const usableWidth = pageWidth - (margin * 2);
-
-      // Calculate column widths to fit all data without trimming
-      const fixedColumnWidths = {
-        0: 8,   // SL.NO
-        1: Math.min(25, usableWidth * 0.15),  // NAME
-        2: Math.min(18, usableWidth * 0.12),  // DESIGNATION
-        [totalColumns - 3]: 12, // T/ON DUTY
-        [totalColumns - 2]: 10, // OT DAYS
-        [totalColumns - 1]: Math.min(30, usableWidth * 0.15)  // REMARKS
-      };
-
-      const fixedWidthTotal = Object.values(fixedColumnWidths).reduce((sum, width) => sum + width, 0);
-      const remainingWidth = usableWidth - fixedWidthTotal;
-      const dayColumnWidth = Math.max(3, remainingWidth / daysInMonth);
-
-      // Build column styles
-      const columnStyles: { [key: number]: any } = {
-        ...fixedColumnWidths,
-        1: { cellWidth: fixedColumnWidths[1], halign: 'left' },
-        2: { cellWidth: fixedColumnWidths[2], halign: 'left' },
-        [totalColumns - 1]: { cellWidth: fixedColumnWidths[totalColumns - 1], halign: 'left' }
-      };
-
-      // Add day columns
-      for (let i = 3; i < totalColumns - 3; i++) {
-        columnStyles[i] = { cellWidth: dayColumnWidth };
-      }
-
-      // Calculate optimal font size
-      const baseFontSize = Math.max(4, Math.min(8, 300 / totalColumns));
-      const headerFontSize = Math.max(5, Math.min(9, 320 / totalColumns));
-
-      // Add title
-      doc.setFontSize(16);
-      doc.setFont(undefined, 'bold');
-      doc.text(appSettings.companyName, pageWidth / 2, 15, { align: 'center' });
-
-      doc.setFontSize(14);
-      doc.text('Attendance', pageWidth / 2, 25, { align: 'center' });
-
-      doc.setFontSize(12);
-      doc.text(`${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`, pageWidth / 2, 35, { align: 'center' });
-
-      // Generate the table with proper fitting
-      autoTable(doc, {
-        head: [headers],
-        body: excelData,
-        startY: 45,
-        styles: {
-          fontSize: baseFontSize,
-          cellPadding: 1,
-          overflow: 'linebreak',
-          halign: 'center',
-          valign: 'middle',
-          lineColor: [0, 0, 0],
-          lineWidth: 0.3
-        },
-        headStyles: {
-          fillColor: [230, 230, 230],
-          textColor: [0, 0, 0],
-          fontStyle: 'bold',
-          fontSize: headerFontSize,
-          lineColor: [0, 0, 0],
-          lineWidth: 0.5
-        },
-        columnStyles,
-        margin: { top: 45, left: margin, right: margin, bottom: 20 },
-        tableWidth: 'wrap',
-        didDrawCell: function(data: any) {
-          // Color code attendance cells
-          if (data.section === 'body' && data.column.index >= 3 && data.column.index < 3 + daysInMonth) {
-            const cellValue = data.cell.raw;
-            if (cellValue && cellValue.toString().trim() !== '') {
-              switch(cellValue.toString().trim()) {
-                case 'P':
-                  data.cell.styles.fillColor = [230, 255, 230]; // Light green
-                  break;
-                case 'A':
-                  data.cell.styles.fillColor = [255, 230, 230]; // Light red
-                  break;
-                case 'OT':
-                  data.cell.styles.fillColor = [255, 255, 200]; // Light yellow
-                  break;
-                case 'L':
-                  data.cell.styles.fillColor = [230, 230, 255]; // Light blue
-                  break;
-                case 'H':
-                  data.cell.styles.fillColor = [240, 240, 240]; // Light gray
-                  break;
-              }
+              case 'P': case 'Present':
+                cellValue = 'P';
+                cellClass += ' present';
+                break;
+              case 'A': case 'Absent':
+                cellValue = 'A';
+                cellClass += ' absent';
+                break;
+              case 'OT': case 'Overtime':
+                cellValue = 'OT';
+                cellClass += ' overtime';
+                break;
+              case 'L': case 'Leave':
+                cellValue = 'L';
+                cellClass += ' leave';
+                break;
+              case 'H': case 'Holiday':
+                cellValue = 'H';
+                cellClass += ' holiday';
+                break;
+              default:
+                cellValue = status;
             }
           }
 
-          // Make SL.NO column bold
-          if (data.section === 'body' && data.column.index === 0) {
-            data.cell.styles.fontStyle = 'bold';
-          }
-        },
-        didDrawPage: function(data: any) {
-          // Add page number
-          doc.setFontSize(8);
-          doc.text(`Page ${data.pageNumber}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+          html += `<td class="${cellClass}">${cellValue}</td>`;
         }
+
+        html += `
+                <td class="total-duty">${presentDays}</td>
+                <td class="ot-days">${otDays}</td>
+                <td class="remarks">${attendanceRecord?.remarks || ''}</td>
+              </tr>`;
       });
 
-      // Generate PDF buffer
-      const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
+      html += `
+            </tbody>
+          </table>
+        </body>
+        </html>`;
+
+      // Launch puppeteer and generate PDF
+      const browser = await puppeteer.launch({
+        headless: true,
+        args: [
+          '--no-sandbox',
+          '--disable-setuid-sandbox',
+          '--disable-dev-shm-usage',
+          '--disable-gpu'
+        ]
+      });
+
+      const page = await browser.newPage();
+      await page.setContent(html, { waitUntil: 'networkidle0' });
+
+      // Generate PDF with proper sizing
+      const pdfBuffer = await page.pdf({
+        format: totalColumns > 35 ? 'A3' : 'A4',
+        landscape: true,
+        margin: {
+          top: '10mm',
+          bottom: '10mm',
+          left: '10mm',
+          right: '10mm'
+        },
+        printBackground: true
+      });
+
+      await browser.close();
 
       // Set response headers
       const filename = `attendance_${monthNames[monthNum - 1]}_${yearNum}.pdf`;
