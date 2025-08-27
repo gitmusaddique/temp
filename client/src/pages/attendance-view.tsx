@@ -35,6 +35,7 @@ export default function AttendanceView() {
   const [showAllEmployees, setShowAllEmployees] = useState(true);
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
+  const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -88,26 +89,31 @@ export default function AttendanceView() {
   // Get unique designations for filter
   const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
 
-  // Define designation hierarchy (lower positions first)
+  // Define designation hierarchy (higher positions first as requested)
   const designationHierarchy = [
-    "Trainee",
-    "Assistant",
-    "Senior Assistant",
-    "Assistant Clerk",
-    "Clerk",
-    "Senior Clerk",
-    "Assistant Officer",
-    "Officer",
-    "Senior Officer",
-    "Assistant Executive",
-    "Executive",
-    "Senior Executive",
-    "Assistant Manager",
-    "Manager",
-    "Assistant General Manager",
-    "General Manager",
+    "Rig IC",
+    "Shift IC", 
+    "Asst Shift IC",
+    "Top Man",
+    "Rig Man",
+    "Managing Director",
     "Director",
-    "Managing Director"
+    "General Manager",
+    "Assistant General Manager",
+    "Manager",
+    "Assistant Manager",
+    "Senior Executive",
+    "Executive",
+    "Assistant Executive",
+    "Senior Officer",
+    "Officer",
+    "Assistant Officer",
+    "Senior Clerk",
+    "Clerk",
+    "Assistant Clerk",
+    "Senior Assistant",
+    "Assistant",
+    "Trainee"
   ];
 
   // Function to get designation priority (lower number = higher priority)
@@ -137,6 +143,11 @@ export default function AttendanceView() {
     return a.name.localeCompare(b.name);
   });
 
+  // Filter employees for modal by modal designation filter
+  const modalFilteredEmployees = modalDesignationFilter === "all" 
+    ? sortedFilteredEmployees 
+    : sortedFilteredEmployees.filter(emp => emp.designation === modalDesignationFilter);
+
   // Then filter by selection if not showing all
   const displayEmployees = showAllEmployees 
     ? sortedFilteredEmployees
@@ -152,6 +163,11 @@ export default function AttendanceView() {
       setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
     }
   }, [selectedDesignation, sortedFilteredEmployees]);
+
+  // Reset modal designation filter when main designation changes
+  React.useEffect(() => {
+    setModalDesignationFilter("all");
+  }, [selectedDesignation]);
 
   // Toggle individual employee selection
   const toggleEmployeeSelection = (employeeId: string) => {
@@ -358,11 +374,9 @@ export default function AttendanceView() {
                 <Button
                   variant={showAllEmployees ? "default" : "outline"}
                   onClick={() => {
+                    setShowSelectionPanel(true);
                     if (showAllEmployees) {
                       setShowAllEmployees(false);
-                      setShowSelectionPanel(true);
-                    } else {
-                      setShowSelectionPanel(true);
                     }
                   }}
                   data-testid="button-toggle-employee-view"
@@ -397,8 +411,29 @@ export default function AttendanceView() {
           </div>
           
           <div className="flex flex-col space-y-4">
+            {/* Designation Filter for Modal */}
+            <div className="pb-4 border-b">
+              <div className="flex items-center space-x-4">
+                <label className="text-sm font-medium text-gray-700">Filter by Designation:</label>
+                <Select value={modalDesignationFilter} onValueChange={setModalDesignationFilter}>
+                  <SelectTrigger className="w-48" data-testid="select-modal-designation-filter">
+                    <SelectValue placeholder="Filter by designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Designations</SelectItem>
+                    {uniqueDesignations.filter(designation => 
+                      sortedFilteredEmployees.some(emp => emp.designation === designation)
+                    ).map(designation => (
+                      <SelectItem key={designation} value={designation}>
+                        {designation}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-              {sortedFilteredEmployees.map(employee => (
+              {modalFilteredEmployees.map(employee => (
                 <div 
                   key={employee.id}
                   className={`p-3 border rounded-lg cursor-pointer transition-all ${
@@ -424,25 +459,29 @@ export default function AttendanceView() {
               ))}
             </div>
             
-            {sortedFilteredEmployees.length === 0 && (
+            {modalFilteredEmployees.length === 0 && (
               <p className="text-center text-gray-500 py-8">
-                No employees found for the selected designation filter.
+                No employees found for the selected filters.
               </p>
             )}
             
             <div className="flex items-center justify-between pt-4 border-t">
               <p className="text-sm text-gray-600">
                 {selectedEmployees.size} of {sortedFilteredEmployees.length} employee(s) selected
+                {modalDesignationFilter !== "all" && (
+                  <span className="text-gray-500"> • Showing {modalFilteredEmployees.length} for {modalDesignationFilter}</span>
+                )}
               </p>
               <div className="space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setSelectedEmployees(new Set(sortedFilteredEmployees.map(emp => emp.id)))}
+                  onClick={() => setSelectedEmployees(new Set(modalFilteredEmployees.map(emp => emp.id)))}
                   data-testid="button-select-all-filtered"
                   className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-3 py-1"
+                  disabled={modalFilteredEmployees.length === 0}
                 >
-                  Select All
+                  Select All Visible
                 </Button>
                 <Button
                   variant="outline"
