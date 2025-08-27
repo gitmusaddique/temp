@@ -433,10 +433,10 @@ app.post("/api/export/xlsx", async (req, res) => {
   }
 });
 
-  // Improved PDF Export with dynamic layout and color coding
+  // PDF Export using Excel-like generation approach
   app.post("/api/export/pdf", async (req, res) => {
     try {
-      const { month, year, selectedEmployees, companyName, rigName } = req.body;
+      const { month, year, selectedEmployees } = req.body;
 
       // Enhanced validation with current date check
       const monthNum = parseInt(month);
@@ -481,61 +481,22 @@ app.post("/api/export/xlsx", async (req, res) => {
       const daysInMonth = new Date(yearNum, monthNum, 0).getDate();
       const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
-      // Get settings for export headers, fetching from database if not provided
-      let appSettings = { companyName: '', rigName: '' };
-      if (companyName && rigName) {
-        appSettings = { companyName, rigName };
-      } else {
-        try {
-          const settings = await storage.getSettings();
-          appSettings = {
-            companyName: settings.companyName || 'Default Company',
-            rigName: settings.rigName || 'Default Rig'
-          };
-        } catch (settingsError) {
-          console.warn("Could not fetch settings from database, using defaults.", settingsError);
-          appSettings = { companyName: 'Default Company', rigName: 'Default Rig' };
-        }
-      }
+      // Get settings for export headers
+      const appSettings = await storage.getSettings();
 
-
-      // Create PDF document with dynamic sizing
-      const doc = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4' // Default to A4, will be adjusted later if needed
-      });
-
-      // Get page dimensions
-      const pageWidth = doc.internal.pageSize.width;
-      const pageHeight = doc.internal.pageSize.height;
-
-      // Title with proper company header
-      doc.setFontSize(16);
-      doc.setFont(undefined, 'bold');
-      doc.text(appSettings.companyName, pageWidth / 2, 15, { align: 'center' });
-
-      doc.setFontSize(14);
-      doc.setFont(undefined, 'bold');
-      doc.text('Attendance', pageWidth / 2, 25, { align: 'center' });
-
-      doc.setFontSize(12);
-      doc.setFont(undefined, 'bold');
-      doc.text(`${appSettings.rigName} MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`, pageWidth / 2, 35, { align: 'center' });
-
-      // Prepare table headers to match reference format
+      // Prepare headers
       const headers = [
-        'SL.NO',
-        'NAME',
-        'DESIGNATION',
+        "SL.NO",
+        "NAME",
+        "DESIGNATION",
         ...dayColumns.map(day => day.toString()),
-        'T/ON DUTY',
-        'OT DAYS',
-        'REMARKS'
+        "T/ON DUTY",
+        "OT DAYS",
+        "REMARKS"
       ];
 
-      // Prepare table data matching reference format
-      const tableData = employees.map((employee, index) => {
+      // Create Excel-like data structure
+      const excelData = employees.map((employee, index) => {
         const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
         let attendanceData: Record<string, string> = {};
 
@@ -555,144 +516,163 @@ app.post("/api/export/xlsx", async (req, res) => {
         const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
         const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
 
-        return [
-          index + 1, // Use sequential numbering based on filtered list
-          (employee.name || '').substring(0, 15),
-          (employee.designation || '').substring(0, 12),
-          ...dayColumns.map(day => {
-            const status = attendanceData[day.toString()];
-            switch(status) {
-              case 'P': case 'Present': return 'P';
-              case 'A': case 'Absent': return 'A';
-              case 'OT': case 'Overtime': return 'OT';
-              case 'L': case 'Leave': return 'L';
-              case 'H': case 'Holiday': return 'H';
-              default: return status || '';
-            }
-          }),
-          presentDays,
-          otDays,
-          (attendanceRecord?.remarks || '').substring(0, 12)
+        const rowData = [
+          index + 1,
+          employee.name || '',
+          employee.designation || ''
         ];
+
+        // Add day columns
+        dayColumns.forEach(day => {
+          const status = attendanceData[day.toString()];
+          const isBlank = !status || status === '' || status === null || status === undefined ||
+                         status.toString().trim() === '' || status.toString().toLowerCase() === 'blank';
+
+          if (isBlank) {
+            rowData.push('');
+          } else {
+            switch(status) {
+              case 'P': case 'Present': rowData.push('P'); break;
+              case 'A': case 'Absent': rowData.push('A'); break;
+              case 'OT': case 'Overtime': rowData.push('OT'); break;
+              case 'L': case 'Leave': rowData.push('L'); break;
+              case 'H': case 'Holiday': rowData.push('H'); break;
+              default: rowData.push(status);
+            }
+          }
+        });
+
+        rowData.push(presentDays, otDays, attendanceRecord?.remarks || '');
+        return rowData;
       });
 
-      // Calculate dynamic column widths
-      const availableWidth = pageWidth - 20; // Subtract margins
-      const fixedColsCount = 9; // SL.NO, NAME, DESIGNATION, T/ON DUTY, OT DAYS, REMARKS + 3 dynamic header columns if they exist
-      const fixedColsWidth = 65; // Approximate total width for fixed columns (SL.NO, NAME, DESIGNATION, T/ON DUTY, OT DAYS, REMARKS)
-      const dayColsWidth = availableWidth - fixedColsWidth;
-      const dayColWidth = Math.max(2.5, dayColsWidth / daysInMonth); // Ensure minimum width for day columns
-
-      // Define column styles to match reference format
-      const columnStyles: { [key: number]: any } = {
-        0: { cellWidth: 8 },   // SL.NO
-        1: { cellWidth: 18, halign: 'left' },  // NAME
-        2: { cellWidth: 15, halign: 'left' }, // DESIGNATION
-        // Summary columns
-        [3 + daysInMonth]: { cellWidth: 10 },     // T/ON DUTY
-        [3 + daysInMonth + 1]: { cellWidth: 10 }, // OT DAYS
-        [3 + daysInMonth + 2]: { cellWidth: 15, halign: 'left' } // REMARKS
-      };
-
-      // Add day columns with dynamic width
-      for (let i = 0; i < daysInMonth; i++) {
-        columnStyles[3 + i] = { cellWidth: dayColWidth };
+      // Create PDF document with landscape orientation and dynamic sizing
+      const totalColumns = headers.length;
+      let orientation: 'landscape' | 'portrait' = 'landscape';
+      let format: string = 'a4';
+      
+      // Determine optimal page size and orientation
+      if (totalColumns > 35) {
+        format = 'a3';
+      } else if (totalColumns > 25) {
+        format = 'a4';
+        orientation = 'landscape';
       }
 
-      // Calculate font size based on number of columns
-      const totalColumns = headers.length;
-      const baseFontSize = Math.max(3, Math.min(6, 200 / totalColumns));
-      const headerFontSize = Math.max(4, Math.min(7, 220 / totalColumns));
+      const doc = new jsPDF({
+        orientation,
+        unit: 'mm',
+        format
+      });
 
-      // Generate table with autoTable
-      try {
-        autoTable(doc, {
-          head: [headers],
-          body: tableData,
-          startY: 45,
-          styles: {
-            fontSize: baseFontSize,
-            cellPadding: 0.5,
-            overflow: 'linebreak',
-            halign: 'center',
-            valign: 'middle',
-            lineColor: [0, 0, 0],
-            lineWidth: 0.1
-          },
-          headStyles: {
-            fillColor: [255, 255, 255],
-            textColor: [0, 0, 0],
-            fontStyle: 'bold',
-            fontSize: headerFontSize,
-            lineColor: [0, 0, 0],
-            lineWidth: 0.5
-          },
-          columnStyles: columnStyles,
-          margin: { top: 45, left: 10, right: 10 },
-          tableWidth: 'auto',
-          // Enable horizontal scrolling for very wide tables
-          horizontalPageBreak: true,
-          horizontalPageBreakWhen: 'after', // Break before the next row
-          horizontalPageBreakRepeat: [0, 1, 2], // Repeat first 3 columns on new pages
-          didDrawCell: function(data: any) {
-            // Color code attendance cells with vibrant colors
-            if (data.section === 'body' && data.column.index >= 3 && data.column.index < 3 + daysInMonth) {
-              const cellValue = data.cell.raw;
-              switch(cellValue) {
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 10;
+      const usableWidth = pageWidth - (margin * 2);
+
+      // Calculate column widths to fit all data without trimming
+      const fixedColumnWidths = {
+        0: 8,   // SL.NO
+        1: Math.min(25, usableWidth * 0.15),  // NAME
+        2: Math.min(18, usableWidth * 0.12),  // DESIGNATION
+        [totalColumns - 3]: 12, // T/ON DUTY
+        [totalColumns - 2]: 10, // OT DAYS
+        [totalColumns - 1]: Math.min(30, usableWidth * 0.15)  // REMARKS
+      };
+
+      const fixedWidthTotal = Object.values(fixedColumnWidths).reduce((sum, width) => sum + width, 0);
+      const remainingWidth = usableWidth - fixedWidthTotal;
+      const dayColumnWidth = Math.max(3, remainingWidth / daysInMonth);
+
+      // Build column styles
+      const columnStyles: { [key: number]: any } = {
+        ...fixedColumnWidths,
+        1: { cellWidth: fixedColumnWidths[1], halign: 'left' },
+        2: { cellWidth: fixedColumnWidths[2], halign: 'left' },
+        [totalColumns - 1]: { cellWidth: fixedColumnWidths[totalColumns - 1], halign: 'left' }
+      };
+
+      // Add day columns
+      for (let i = 3; i < totalColumns - 3; i++) {
+        columnStyles[i] = { cellWidth: dayColumnWidth };
+      }
+
+      // Calculate optimal font size
+      const baseFontSize = Math.max(4, Math.min(8, 300 / totalColumns));
+      const headerFontSize = Math.max(5, Math.min(9, 320 / totalColumns));
+
+      // Add title
+      doc.setFontSize(16);
+      doc.setFont(undefined, 'bold');
+      doc.text(appSettings.companyName, pageWidth / 2, 15, { align: 'center' });
+
+      doc.setFontSize(14);
+      doc.text('Attendance', pageWidth / 2, 25, { align: 'center' });
+
+      doc.setFontSize(12);
+      doc.text(`${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`, pageWidth / 2, 35, { align: 'center' });
+
+      // Generate the table with proper fitting
+      autoTable(doc, {
+        head: [headers],
+        body: excelData,
+        startY: 45,
+        styles: {
+          fontSize: baseFontSize,
+          cellPadding: 1,
+          overflow: 'linebreak',
+          halign: 'center',
+          valign: 'middle',
+          lineColor: [0, 0, 0],
+          lineWidth: 0.3
+        },
+        headStyles: {
+          fillColor: [230, 230, 230],
+          textColor: [0, 0, 0],
+          fontStyle: 'bold',
+          fontSize: headerFontSize,
+          lineColor: [0, 0, 0],
+          lineWidth: 0.5
+        },
+        columnStyles,
+        margin: { top: 45, left: margin, right: margin, bottom: 20 },
+        tableWidth: 'wrap',
+        didDrawCell: function(data: any) {
+          // Color code attendance cells
+          if (data.section === 'body' && data.column.index >= 3 && data.column.index < 3 + daysInMonth) {
+            const cellValue = data.cell.raw;
+            if (cellValue && cellValue.toString().trim() !== '') {
+              switch(cellValue.toString().trim()) {
                 case 'P':
-                  data.cell.styles.fillColor = [144, 238, 144]; // Light green for Present
-                  data.cell.styles.textColor = [0, 100, 0]; // Dark green text
+                  data.cell.styles.fillColor = [230, 255, 230]; // Light green
                   break;
                 case 'A':
-                  data.cell.styles.fillColor = [255, 182, 193]; // Light red for Absent
-                  data.cell.styles.textColor = [139, 0, 0]; // Dark red text
+                  data.cell.styles.fillColor = [255, 230, 230]; // Light red
                   break;
                 case 'OT':
-                  data.cell.styles.fillColor = [255, 255, 150]; // Light yellow for Overtime
-                  data.cell.styles.textColor = [204, 153, 0]; // Dark yellow text
+                  data.cell.styles.fillColor = [255, 255, 200]; // Light yellow
                   break;
                 case 'L':
-                  data.cell.styles.fillColor = [173, 216, 230]; // Light blue for Leave
-                  data.cell.styles.textColor = [0, 0, 139]; // Dark blue text
+                  data.cell.styles.fillColor = [230, 230, 255]; // Light blue
                   break;
                 case 'H':
-                  data.cell.styles.fillColor = [220, 220, 220]; // Light gray for Holiday
-                  data.cell.styles.textColor = [105, 105, 105]; // Dark gray text
+                  data.cell.styles.fillColor = [240, 240, 240]; // Light gray
                   break;
               }
             }
-
-            // Make SL.NO column bold
-            if (data.section === 'body' && data.column.index === 0) {
-              data.cell.styles.fontStyle = 'bold';
-            }
-
-            // Add borders to all cells
-            data.cell.styles.lineColor = [0, 0, 0];
-            data.cell.styles.lineWidth = 0.1;
-          },
-          didDrawPage: function(data: any) {
-            // Add page number
-            doc.setFontSize(8);
-            doc.text(
-              `Page ${data.pageNumber}`,
-              pageWidth - 20,
-              pageHeight - 10,
-              { align: 'right' }
-            );
           }
-        });
-      } catch (tableError) {
-        console.error('Error generating PDF table:', tableError);
-        return res.status(500).json({ message: "Failed to generate PDF table" });
-      }
 
-      // Adjust page format if table is too wide for A4 landscape
-      const finalTableWidth = doc.autoTable.previous.finalStyle.tableWidth;
-      if (finalTableWidth > doc.internal.pageSize.getWidth() - 20) { // Check against usable width
-        doc.setPageFormat('a3'); // Switch to A3
-      }
-
+          // Make SL.NO column bold
+          if (data.section === 'body' && data.column.index === 0) {
+            data.cell.styles.fontStyle = 'bold';
+          }
+        },
+        didDrawPage: function(data: any) {
+          // Add page number
+          doc.setFontSize(8);
+          doc.text(`Page ${data.pageNumber}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+        }
+      });
 
       // Generate PDF buffer
       const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
@@ -704,6 +684,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       res.setHeader('Content-Length', pdfBuffer.length);
 
       res.send(pdfBuffer);
+
     } catch (error) {
       console.error('PDF export error:', error);
       res.status(500).json({
