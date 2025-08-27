@@ -574,30 +574,30 @@ export default function AttendanceView() {
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b sticky top-0 z-10">
                   <tr>
-                    <th className="px-2 py-2 text-left text-xs font-bold text-gray-500 uppercase border-r" data-testid="header-sl-no">
+                    <th className="px-2 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-sl-no">
                       SL.NO
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase border-r" data-testid="header-name">
+                    <th className="px-4 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-name">
                       NAME
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase border-r" data-testid="header-designation">
+                    <th className="px-4 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-designation">
                       DESIGNATION
                     </th>
-                    <th className="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase border-r" data-testid="header-status">
+                    <th className="px-4 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-status">
                       STATUS
                     </th>
                     {dayColumns.map(day => (
-                      <th key={day} className="px-1 py-2 text-center text-xs font-bold text-gray-500 border-r w-8" data-testid={`header-day-${day}`}>
+                      <th key={day} className="px-1 py-2 text-center text-xs font-extrabold text-gray-700 border-r w-8" data-testid={`header-day-${day}`}>
                         {day}
                       </th>
                     ))}
-                    <th className="px-2 py-2 text-center text-xs font-bold text-gray-500 border-r" data-testid="header-total-on-duty">
+                    <th className="px-2 py-2 text-center text-xs font-extrabold text-gray-700 border-r" data-testid="header-total-on-duty">
                       T/ON DUTY
                     </th>
-                    <th className="px-2 py-2 text-center text-xs font-bold text-gray-500 border-r" data-testid="header-ot-days">
+                    <th className="px-2 py-2 text-center text-xs font-extrabold text-gray-700 border-r" data-testid="header-ot-days">
                       OT DAYS
                     </th>
-                    <th className="px-4 py-2 text-center text-xs font-bold text-gray-500" data-testid="header-remarks">
+                    <th className="px-4 py-2 text-center text-xs font-extrabold text-gray-700" data-testid="header-remarks">
                       REMARKS
                     </th>
                   </tr>
@@ -628,7 +628,11 @@ export default function AttendanceView() {
                           <td className="px-4 py-2 text-sm border-r" data-testid={`text-designation-${employee.id}`}>
                             {employee.designation || "-"}
                           </td>
-                          <td className="px-4 py-2 text-sm border-r font-medium capitalize" data-testid={`text-status-${employee.id}`}>
+                          <td className={`px-4 py-2 text-sm border-r font-medium capitalize ${
+                            employee.isActive 
+                              ? 'text-green-600 bg-green-50' 
+                              : 'text-red-600 bg-red-50'
+                          }`} data-testid={`text-status-${employee.id}`}>
                             {employee.isActive ? 'Active' : 'Inactive'}
                           </td>
                           {dayColumns.map(day => {
