@@ -198,7 +198,7 @@ app.post("/api/export/xlsx", async (req, res) => {
     // Add title rows
     worksheet.addRow([appSettings.companyName]);
     worksheet.addRow(['Attendance']);
-    worksheet.addRow([`${appSettings.rigName} MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`]);
+    worksheet.addRow([`${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`]);
     worksheet.addRow([]); // Empty row
     worksheet.addRow(headers); // Headers
 
@@ -236,19 +236,24 @@ app.post("/api/export/xlsx", async (req, res) => {
       }
     };
 
-    // Merge and style title rows
+    // Merge and style title rows - ensure proper column span
     worksheet.mergeCells(1, 1, 1, headers.length);
+    worksheet.getRow(1).getCell(1).value = appSettings.companyName;
     worksheet.getRow(1).getCell(1).style = titleStyle;
 
     worksheet.mergeCells(2, 1, 2, headers.length);
+    worksheet.getRow(2).getCell(1).value = 'Attendance';
     worksheet.getRow(2).getCell(1).style = subtitleStyle;
 
     worksheet.mergeCells(3, 1, 3, headers.length);
+    worksheet.getRow(3).getCell(1).value = `${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`;
     worksheet.getRow(3).getCell(1).style = monthStyle;
 
-    // Style header row (row 5)
+    // Style header row (row 5) - make sure all headers are visible
     const headerRow = worksheet.getRow(5);
-    headerRow.eachCell((cell) => {
+    headers.forEach((header, index) => {
+      const cell = headerRow.getCell(index + 1);
+      cell.value = header;
       cell.style = {
         font: { bold: true, size: 11 },
         alignment: { horizontal: 'center', vertical: 'middle' },
@@ -283,7 +288,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
       const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
 
-      const rowIndex = index + 5; // Starting from row 5 (after header rows)
+      const rowIndex = index + 6; // Starting from row 6 (after title rows and headers)
       const row = worksheet.getRow(rowIndex);
 
       row.getCell(1).value = index + 1; // Use sequential numbering based on filtered list
