@@ -304,10 +304,13 @@ app.post("/api/export/xlsx", async (req, res) => {
         // Apply base style to all cells
         cell.style = baseStyle;
 
-        // Skip further styling for empty cells - they will remain white
+        // Ensure blank cells have white background
         if (cell.value === '' || cell.value === null || cell.value === undefined) {
-          cell.style = {}; 
-	  return;
+          cell.style = {
+            ...baseStyle,
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
+          };
+          return;
         }
 
         // Make SL.NO column (first column) BOLD
