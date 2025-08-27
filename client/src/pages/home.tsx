@@ -40,10 +40,14 @@ export default function Home() {
   // Fetch app settings from the database
   const { data: settings, isLoading: isLoadingSettings } = useQuery<{ companyName: string; rigName: string }>({
     queryKey: ["/api/settings"],
-    onSuccess: (data) => {
-      setAppSettings(data);
-    },
   });
+
+  // Update app settings when data is fetched
+  useEffect(() => {
+    if (settings) {
+      setAppSettings(settings);
+    }
+  }, [settings]);
 
   const { data: employees = [], isLoading } = useQuery<Employee[]>({
     queryKey: ["/api/employees"],
