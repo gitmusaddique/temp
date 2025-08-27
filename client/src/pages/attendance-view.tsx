@@ -570,7 +570,7 @@ export default function AttendanceView() {
                 </Select>
               </div>
             </div>
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b sticky top-0 z-10">
                   <tr>
@@ -602,10 +602,7 @@ export default function AttendanceView() {
                     </th>
                   </tr>
                 </thead>
-              </table>
-              <div className="max-h-[480px] overflow-y-auto">
-                <table className="min-w-full">
-                  <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-gray-200">
                   {displayEmployees.length === 0 ? (
                     <tr>
                       <td colSpan={dayColumns.length + 7} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
@@ -679,9 +676,8 @@ export default function AttendanceView() {
                       );
                     })
                   )}
-                  </tbody>
-                </table>
-              </div>
+                </tbody>
+              </table>
             </div>
           </CardContent>
         </Card>
