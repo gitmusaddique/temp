@@ -74,6 +74,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Settings routes
+  app.get("/api/settings", async (req, res) => {
+    try {
+      const settings = await storage.getSettings();
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  app.post("/api/settings", async (req, res) => {
+    try {
+      const { companyName, rigName } = req.body;
+      if (!companyName || !rigName) {
+        return res.status(400).json({ message: "Company name and rig name are required" });
+      }
+      const settings = await storage.updateSettings({ companyName, rigName });
+      res.json(settings);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update settings" });
+    }
+  });
+
   // Attendance routes
   app.get("/api/attendance/:month/:year", async (req, res) => {
     try {

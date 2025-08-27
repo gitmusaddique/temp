@@ -110,7 +110,7 @@ export class SqliteStorage implements IStorage {
       SET designation_order = ? 
       WHERE designation = ?
     `);
-    
+
     const designationNumbers: Record<string, number> = {
       'Rig I/C': 1,
       'Shift I/C': 2,
@@ -279,8 +279,28 @@ export class SqliteStorage implements IStorage {
   }
 
   async deleteEmployee(id: string): Promise<boolean> {
-    const result = this.statements.deleteEmployee.run(id);
+    const result = this.db.prepare("DELETE FROM employees WHERE id = ?").run(id);
     return result.changes > 0;
+  }
+
+  async getSettings(): Promise<{ companyName: string; rigName: string }> {
+    const settings = this.db.prepare(`
+      SELECT company_name as companyName, rig_name as rigName 
+      FROM app_settings 
+      WHERE id = 'default'
+    `).get() as { companyName: string; rigName: string } | undefined;
+
+    return settings || { companyName: 'Siddik', rigName: 'ROM-100-II' };
+  }
+
+  async updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }> {
+    this.db.prepare(`
+      UPDATE app_settings 
+      SET company_name = ?, rig_name = ?, updated_at = CURRENT_TIMESTAMP 
+      WHERE id = 'default'
+    `).run(settings.companyName, settings.rigName);
+
+    return settings;
   }
 
   // Attendance operations
@@ -358,31 +378,31 @@ export class SqliteStorage implements IStorage {
   }
 
   // Settings operations
-  async getSettings(): Promise<{ companyName: string; rigName: string }> {
-    const row = this.statements.getSettings.get('default');
-    if (!row) {
-      // Return default settings if none exist
-      return { companyName: 'Siddik', rigName: 'ROM-100-II' };
-    }
-    return {
-      companyName: row.company_name,
-      rigName: row.rig_name
-    };
-  }
+  // async getSettings(): Promise<{ companyName: string; rigName: string }> {
+  //   const row = this.statements.getSettings.get('default');
+  //   if (!row) {
+  //     // Return default settings if none exist
+  //     return { companyName: 'Siddik', rigName: 'ROM-100-II' };
+  //   }
+  //   return {
+  //     companyName: row.company_name,
+  //     rigName: row.rig_name
+  //   };
+  // }
 
-  async updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }> {
-    const result = this.statements.updateSettings.run(
-      settings.companyName,
-      settings.rigName,
-      'default'
-    );
+  // async updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }> {
+  //   const result = this.statements.updateSettings.run(
+  //     settings.companyName,
+  //     settings.rigName,
+  //     'default'
+  //   );
 
-    if (result.changes === 0) {
-      throw new Error('Failed to update settings');
-    }
+  //   if (result.changes === 0) {
+  //     throw new Error('Failed to update settings');
+  //   }
 
-    return settings;
-  }
+  //   return settings;
+  // }
 
   // Utility methods
   close() {
