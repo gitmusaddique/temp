@@ -303,6 +303,7 @@ export class SqliteStorage implements IStorage {
       designationOrder: row.designation_order || 999,
       department: row.department,
       status: row.status,
+      isActive: row.status === 'Active', // Add isActive property based on status
       serialNumber: row.serial_number,
     };
   }

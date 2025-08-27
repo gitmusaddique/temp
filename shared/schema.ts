@@ -34,7 +34,9 @@ export const insertEmployeeSchema = createInsertSchema(employees).pick({
 });
 
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
-export type Employee = typeof employees.$inferSelect;
+export type Employee = typeof employees.$inferSelect & {
+  isActive: boolean;
+};
 
 export const attendanceRecord = pgTable("attendance_records", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
