@@ -33,7 +33,7 @@ export default function Home() {
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [appSettings, setAppSettings] = useState({ companyName: "Siddik", rigName: "ROM-100-II" });
+  const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -137,7 +137,7 @@ export default function Home() {
               </div>
               <div>
                 <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
-                  {appSettings.companyName}
+                  {appSettings?.companyName || "Loading..."}
                 </h1>
                 <p className="text-xs text-gray-600">Attendance Management</p>
               </div>

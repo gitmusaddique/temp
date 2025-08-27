@@ -39,7 +39,7 @@ export default function AttendanceView() {
   const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
   const [modalStatusFilter, setModalStatusFilter] = useState("all"); // Added for status filtering in modal
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [appSettings, setAppSettings] = useState({ companyName: "Siddik", rigName: "ROM-100-II" });
+  const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
 
   // Load settings from database
   const { data: settings } = useQuery({
@@ -314,7 +314,7 @@ export default function AttendanceView() {
               </div>
               <div>
                 <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
-                  {appSettings.companyName}
+                  {appSettings?.companyName || "Loading..."}
                 </h1>
                 <p className="text-xs text-gray-600">Attendance Management</p>
               </div>

@@ -13,8 +13,8 @@ interface SettingsModalProps {
 }
 
 export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: SettingsModalProps) {
-  const [companyName, setCompanyName] = useState("Siddik");
-  const [rigName, setRigName] = useState("ROM-100-II");
+  const [companyName, setCompanyName] = useState("");
+  const [rigName, setRigName] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
 

@@ -34,7 +34,7 @@ export default function ExportModal({
   const { toast } = useToast();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [appSettings, setAppSettings] = useState({ companyName: "Siddik", rigName: "ROM-100-II" });
+  const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
 
   useEffect(() => {
     const saved = localStorage.getItem('appSettings');
@@ -42,7 +42,7 @@ export default function ExportModal({
       try {
         setAppSettings(JSON.parse(saved));
       } catch {
-        setAppSettings({ companyName: "Siddik", rigName: "ROM-100-II" });
+        setAppSettings(null);
       }
     }
   }, [isOpen]);
