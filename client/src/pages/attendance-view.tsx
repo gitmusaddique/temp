@@ -95,7 +95,6 @@ export default function AttendanceView() {
     "Shift IC", 
     "Asst Shift IC",
     "Top Man",
-    "Rig Man",
     "Managing Director",
     "Director",
     "General Manager",
@@ -113,7 +112,8 @@ export default function AttendanceView() {
     "Assistant Clerk",
     "Senior Assistant",
     "Assistant",
-    "Trainee"
+    "Trainee",
+    "Rig Man"
   ];
 
   // Function to get designation priority (lower number = higher priority)
