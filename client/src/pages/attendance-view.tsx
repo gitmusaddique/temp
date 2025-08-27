@@ -35,6 +35,7 @@ export default function AttendanceView() {
   const [showAllEmployees, setShowAllEmployees] = useState(true);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [selectionDesignationFilter, setSelectionDesignationFilter] = useState("all");
+  const [hideSelectionPanel, setHideSelectionPanel] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -332,11 +333,26 @@ export default function AttendanceView() {
                 
                 <Button
                   variant={showAllEmployees ? "default" : "outline"}
-                  onClick={() => setShowAllEmployees(!showAllEmployees)}
+                  onClick={() => {
+                    setShowAllEmployees(!showAllEmployees);
+                    if (showAllEmployees) {
+                      setHideSelectionPanel(false); // Show panel when switching to select mode
+                    }
+                  }}
                   data-testid="button-toggle-employee-view"
                 >
                   {showAllEmployees ? "Select Employees" : "Show All"}
                 </Button>
+                
+                {!showAllEmployees && hideSelectionPanel && (
+                  <Button
+                    variant="outline"
+                    onClick={() => setHideSelectionPanel(false)}
+                    data-testid="button-show-selection-panel"
+                  >
+                    Show Selection Panel ({selectedEmployees.size} selected)
+                  </Button>
+                )}
                 
                 <Button 
                   onClick={() => setShowExportModal(true)}
@@ -353,11 +369,21 @@ export default function AttendanceView() {
       </div>
 
       {/* Employee Selection Panel */}
-      {!showAllEmployees && (
+      {!showAllEmployees && !hideSelectionPanel && (
         <div className="max-w-full mx-auto px-4 py-4">
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="text-lg">Select Employees for Attendance</CardTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setHideSelectionPanel(true)}
+                  data-testid="button-hide-selection-panel"
+                >
+                  Hide Selection Panel
+                </Button>
+              </div>
             </CardHeader>
             <CardContent>
               <div className="mb-4">
