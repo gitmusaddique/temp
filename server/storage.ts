@@ -89,14 +89,32 @@ export class SqliteStorage implements IStorage {
       
       const designationNumbers: Record<string, number> = {
         'rig ic': 1,
+        'Rig IC': 1,
+        'RIG IC': 1,
         'shift ic': 2,
+        'Shift IC': 2,
+        'SHIFT IC': 2,
         'ass shift ic': 3,
         'asst shift ic': 3,
         'assistant shift ic': 3,
+        'Ass Shift IC': 3,
+        'Asst Shift IC': 3,
+        'Assistant Shift IC': 3,
+        'ASS SHIFT IC': 3,
+        'ASST SHIFT IC': 3,
+        'ASSISTANT SHIFT IC': 3,
         'topman': 4,
         'top man': 4,
+        'Topman': 4,
+        'Top Man': 4,
+        'TOPMAN': 4,
+        'TOP MAN': 4,
         'rigman': 5,
-        'rig man': 5
+        'rig man': 5,
+        'Rigman': 5,
+        'Rig Man': 5,
+        'RIGMAN': 5,
+        'RIG MAN': 5
       };
 
       for (const [designation, order] of Object.entries(designationNumbers)) {
@@ -160,6 +178,8 @@ export class SqliteStorage implements IStorage {
   }
 
   private getDesignationOrder(designation: string): number {
+    const normalizedDesignation = designation.toLowerCase().trim();
+    
     const designationNumbers: Record<string, number> = {
       'rig ic': 1,
       'shift ic': 2,
@@ -172,7 +192,7 @@ export class SqliteStorage implements IStorage {
       'rig man': 5
     };
 
-    return designationNumbers[designation.toLowerCase().trim()] || 999;
+    return designationNumbers[normalizedDesignation] || 999;
   }
 
   // Employee operations

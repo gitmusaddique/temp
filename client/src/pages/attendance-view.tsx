@@ -125,25 +125,13 @@ export default function AttendanceView() {
     return index === -1 ? 500 : index; // Unknown designations in the middle
   };
 
-  // Filter employees by main designation filter
+  // Filter employees by main designation filter (employees are already sorted by database)
   const designationFilteredEmployees = selectedDesignation === "all" 
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Sort employees by designationOrder from database, then by name within each designation
-  const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
-    // Get designation order from database field (default to 999 if not set)
-    const aOrder = a.designationOrder || 999;
-    const bOrder = b.designationOrder || 999;
-
-    // First sort by designation order (lower number = higher priority)
-    if (aOrder !== bOrder) {
-      return aOrder - bOrder;
-    }
-
-    // Within same designation, sort alphabetically by name
-    return (a.name || '').localeCompare(b.name || '');
-  });
+  // Use the employees as they come from database (already sorted by designation_order, then name)
+  const sortedFilteredEmployees = designationFilteredEmployees;
 
   // Filter employees for modal by modal designation filter
   const modalFilteredEmployees = modalDesignationFilter === "all" 
