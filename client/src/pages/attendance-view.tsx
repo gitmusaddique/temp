@@ -31,6 +31,9 @@ export default function AttendanceView() {
   });
   const [showExportModal, setShowExportModal] = useState(false);
   const [selectedCell, setSelectedCell] = useState<{employeeId: string, day: number, currentStatus: string} | null>(null);
+  const [selectedEmployees, setSelectedEmployees] = useState<Set<string>>(new Set());
+  const [showAllEmployees, setShowAllEmployees] = useState(true);
+  const [selectedDesignation, setSelectedDesignation] = useState("all");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -80,6 +83,38 @@ export default function AttendanceView() {
 
   const daysInMonth = getDaysInMonth(parseInt(selectedMonth), parseInt(selectedYear));
   const dayColumns = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+
+  // Get unique designations for filter
+  const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean)));
+
+  // Filter employees by designation first
+  const designationFilteredEmployees = selectedDesignation === "all" 
+    ? employees 
+    : employees.filter(emp => emp.designation === selectedDesignation);
+
+  // Then filter by selection if not showing all
+  const displayEmployees = showAllEmployees 
+    ? designationFilteredEmployees
+    : designationFilteredEmployees.filter(emp => selectedEmployees.has(emp.id));
+
+  // Employee selection functions
+  const toggleEmployeeSelection = (employeeId: string) => {
+    const newSelected = new Set(selectedEmployees);
+    if (newSelected.has(employeeId)) {
+      newSelected.delete(employeeId);
+    } else {
+      newSelected.add(employeeId);
+    }
+    setSelectedEmployees(newSelected);
+  };
+
+  const selectAllEmployees = () => {
+    setSelectedEmployees(new Set(designationFilteredEmployees.map(emp => emp.id)));
+  };
+
+  const clearAllSelections = () => {
+    setSelectedEmployees(new Set());
+  };
 
   // Get attendance status for a specific employee and day
   const getAttendanceStatus = (employeeId: string, day: number): string => {
@@ -238,6 +273,11 @@ export default function AttendanceView() {
                 <p className="text-sm text-gray-600" data-testid="text-selected-period">
                   {monthNames[parseInt(selectedMonth) - 1]} {selectedYear}
                 </p>
+                {!showAllEmployees && (
+                  <p className="text-xs text-blue-600" data-testid="text-selection-status">
+                    {selectedEmployees.size} of {designationFilteredEmployees.length} employees selected
+                  </p>
+                )}
               </div>
             </div>
             <div className="flex items-center space-x-2">
@@ -266,14 +306,59 @@ export default function AttendanceView() {
                   ))}
                 </SelectContent>
               </Select>
-              <Button 
-                onClick={() => setShowExportModal(true)}
-                className="bg-secondary hover:bg-secondary-light text-white"
-                data-testid="button-export-attendance"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Export
-              </Button>
+              <div className="flex items-center space-x-2">
+                <Select value={selectedDesignation} onValueChange={setSelectedDesignation}>
+                  <SelectTrigger className="w-48" data-testid="select-designation-filter-attendance">
+                    <SelectValue placeholder="Filter by designation" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Designations</SelectItem>
+                    {uniqueDesignations.map(designation => (
+                      <SelectItem key={designation} value={designation}>
+                        {designation}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                
+                <Button
+                  variant={showAllEmployees ? "default" : "outline"}
+                  onClick={() => setShowAllEmployees(!showAllEmployees)}
+                  data-testid="button-toggle-employee-view"
+                >
+                  {showAllEmployees ? "Show Selected" : "Show All"}
+                </Button>
+                
+                {!showAllEmployees && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={selectAllEmployees}
+                      data-testid="button-select-all"
+                    >
+                      Select All
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={clearAllSelections}
+                      data-testid="button-clear-all"
+                    >
+                      Clear All
+                    </Button>
+                  </>
+                )}
+                
+                <Button 
+                  onClick={() => setShowExportModal(true)}
+                  className="bg-secondary hover:bg-secondary-light text-white"
+                  data-testid="button-export-attendance"
+                >
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -298,6 +383,11 @@ export default function AttendanceView() {
               <table className="min-w-full">
                 <thead className="bg-gray-50 border-b">
                   <tr>
+                    {!showAllEmployees && (
+                      <th className="px-2 py-2 text-center text-xs font-medium text-gray-500 uppercase border-r" data-testid="header-select">
+                        SELECT
+                      </th>
+                    )}
                     <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase border-r" data-testid="header-sl-no">
                       SL.NO
                     </th>
@@ -324,19 +414,30 @@ export default function AttendanceView() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {employees.length === 0 ? (
+                  {displayEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={dayColumns.length + 6} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
-                        No employees found. Add employees to view attendance.
+                      <td colSpan={dayColumns.length + (showAllEmployees ? 6 : 7)} className="text-center py-8 text-gray-500" data-testid="text-no-employees-attendance">
+                        {employees.length === 0 ? "No employees found. Add employees to view attendance." : 
+                         showAllEmployees ? "No employees match the selected designation." : "No employees selected. Use the controls above to select employees."}
                       </td>
                     </tr>
                   ) : (
-                    employees.map((employee, index) => {
+                    displayEmployees.map((employee, index) => {
                       const totalPresent = dayColumns.filter(day => getAttendanceStatus(employee.id, day) === "P").length;
                       const totalOT = dayColumns.filter(day => getAttendanceStatus(employee.id, day) === "OT").length;
                       
                       return (
                         <tr key={employee.id} className="hover:bg-gray-50" data-testid={`row-employee-${employee.id}`}>
+                          {!showAllEmployees && (
+                            <td className="px-2 py-2 text-center border-r" data-testid={`checkbox-select-${employee.id}`}>
+                              <input
+                                type="checkbox"
+                                checked={selectedEmployees.has(employee.id)}
+                                onChange={() => toggleEmployeeSelection(employee.id)}
+                                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                              />
+                            </td>
+                          )}
                           <td className="px-2 py-2 text-sm border-r" data-testid={`text-serial-${employee.id}`}>
                             {employee.serialNumber}
                           </td>

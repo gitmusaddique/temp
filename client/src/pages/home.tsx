@@ -13,9 +13,17 @@ import CreateEmployeeModal from "@/components/create-employee-modal";
 import ExportModal from "@/components/export-modal";
 import DeleteConfirmationModal from "@/components/delete-confirmation-modal";
 import { Building, Download, CalendarDays, Search, Plus, Bell, Settings } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function Home() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedDesignation, setSelectedDesignation] = useState<string>("all"); // State for designation filter
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -49,10 +57,16 @@ export default function Home() {
     },
   });
 
-  const filteredEmployees = employees.filter(emp =>
-    emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (emp.designation && emp.designation.toLowerCase().includes(searchQuery.toLowerCase()))
-  );
+  // Extract unique designations for the filter
+  const uniqueDesignations = Array.from(new Set(employees.map(emp => emp.designation).filter(Boolean) as string[]));
+
+  // Filter employees by search query and designation
+  const filteredEmployees = employees.filter(emp => {
+    const matchesSearch = emp.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (emp.designation && emp.designation.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesDesignation = selectedDesignation === "all" || emp.designation === selectedDesignation;
+    return matchesSearch && matchesDesignation;
+  });
 
   const handleDeleteEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
@@ -126,7 +140,7 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Card 
               className="hover:shadow-material-lg transition-shadow cursor-pointer"
               onClick={() => setShowExportModal(true)}
@@ -144,7 +158,7 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
-            
+
             <Link href="/attendance">
               <Card 
                 className="hover:shadow-material-lg transition-shadow cursor-pointer"
@@ -182,6 +196,19 @@ export default function Home() {
                 />
                 <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400" />
               </div>
+              <Select value={selectedDesignation} onValueChange={setSelectedDesignation}>
+                <SelectTrigger className="w-48" data-testid="select-designation-filter">
+                  <SelectValue placeholder="Filter by designation" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Designations</SelectItem>
+                  {uniqueDesignations.map(designation => (
+                    <SelectItem key={designation} value={designation}>
+                      {designation}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <Button 
                 onClick={() => setShowCreateModal(true)}
                 className="bg-primary hover:bg-primary-light text-white"
@@ -210,15 +237,15 @@ export default function Home() {
                   <Building className="w-8 h-8 text-gray-400" />
                 </div>
                 <h3 className="text-lg font-medium mb-2" data-testid="text-no-employees">
-                  {searchQuery ? "No employees found" : "No employees yet"}
+                  {searchQuery || selectedDesignation !== "all" ? "No employees found" : "No employees yet"}
                 </h3>
                 <p className="text-gray-600 mb-4">
-                  {searchQuery 
-                    ? "Try adjusting your search terms" 
+                  {searchQuery || selectedDesignation !== "all"
+                    ? "Try adjusting your search or filter terms" 
                     : "Start by adding your first employee to the system"
                   }
                 </p>
-                {!searchQuery && (
+                {!searchQuery && selectedDesignation === "all" && (
                   <Button onClick={() => setShowCreateModal(true)} data-testid="button-add-first-employee">
                     Add Employee
                   </Button>
