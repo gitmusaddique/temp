@@ -264,7 +264,7 @@ app.post("/api/export/xlsx", async (req, res) => {
                        status === undefined || 
                        status.toString().trim() === '' ||
                        status.toString().toLowerCase() === 'blank';
-        
+
         if (isBlank) {
           rowData.push(''); // Push empty string which ExcelJS will treat as empty
         } else {
@@ -285,7 +285,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       rowData.push(attendanceRecord?.remarks || '');
 
       const dataRow = worksheet.addRow(rowData);
-      
+
       // Style each cell in the data row
       dataRow.eachCell((cell, colNumber) => {
         // Base style for all cells (including empty ones)
