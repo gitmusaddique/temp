@@ -108,7 +108,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 app.post("/api/export/xlsx", async (req, res) => {
   try {
-    const { month, year } = req.body;
+    const { month, year, selectedEmployees } = req.body;
 
     // Enhanced validation with current date check
     const monthNum = parseInt(month);
@@ -130,8 +130,13 @@ app.post("/api/export/xlsx", async (req, res) => {
       });
     }
 
-    const employees = await storage.getAllEmployees();
+    let employees = await storage.getAllEmployees();
     const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
+
+    // Filter employees if selectedEmployees array is provided
+    if (selectedEmployees && Array.isArray(selectedEmployees) && selectedEmployees.length > 0) {
+      employees = employees.filter(emp => selectedEmployees.includes(emp.id));
+    }
 
     if (!employees || employees.length === 0) {
       return res.status(404).json({ message: "No employees found" });
@@ -397,7 +402,7 @@ app.post("/api/export/xlsx", async (req, res) => {
   // Improved PDF Export with dynamic layout and color coding
   app.post("/api/export/pdf", async (req, res) => {
     try {
-      const { month, year } = req.body;
+      const { month, year, selectedEmployees } = req.body;
 
       // Enhanced validation with current date check
       const monthNum = parseInt(month);
@@ -419,8 +424,13 @@ app.post("/api/export/xlsx", async (req, res) => {
         });
       }
 
-      const employees = await storage.getAllEmployees();
+      let employees = await storage.getAllEmployees();
       const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
+
+      // Filter employees if selectedEmployees array is provided
+      if (selectedEmployees && Array.isArray(selectedEmployees) && selectedEmployees.length > 0) {
+        employees = employees.filter(emp => selectedEmployees.includes(emp.id));
+      }
 
       if (!employees || employees.length === 0) {
         return res.status(404).json({ message: "No employees found" });

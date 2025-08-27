@@ -564,6 +564,8 @@ export default function AttendanceView() {
         onClose={() => setShowExportModal(false)}
         defaultMonth={selectedMonth}
         defaultYear={selectedYear}
+        selectedEmployees={selectedEmployees}
+        showAllEmployees={showAllEmployees}
       />
 
       {/* Attendance Status Dialog */}

@@ -14,9 +14,18 @@ interface ExportModalProps {
   onClose: () => void;
   defaultMonth?: string;
   defaultYear?: string;
+  selectedEmployees?: Set<string>;
+  showAllEmployees?: boolean;
 }
 
-export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defaultYear = "2025" }: ExportModalProps) {
+export default function ExportModal({ 
+  isOpen, 
+  onClose, 
+  defaultMonth = "3", 
+  defaultYear = "2025", 
+  selectedEmployees = new Set(),
+  showAllEmployees = true 
+}: ExportModalProps) {
   const [exportData, setExportData] = useState({
     month: defaultMonth,
     year: defaultYear,
@@ -37,6 +46,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
         body: JSON.stringify({
           month: parseInt(exportData.month),
           year: parseInt(exportData.year),
+          selectedEmployees: showAllEmployees ? undefined : Array.from(selectedEmployees),
         }),
       });
 
@@ -156,7 +166,7 @@ export default function ExportModal({ isOpen, onClose, defaultMonth = "3", defau
               <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2" />
               <div>
                 <p className="text-sm text-blue-800" data-testid="text-export-info">
-                  Export will include all employees with attendance grid for selected month/year.
+                  Export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with attendance grid for selected month/year.
                 </p>
               </div>
             </div>
