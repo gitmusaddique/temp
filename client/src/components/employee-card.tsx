@@ -116,10 +116,10 @@ export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) 
                 <p className="text-sm text-gray-600 mt-1">
                   ID: {employee.employeeId}
                 </p>
-                <p className="text-sm text-gray-600 mt-1">
-                  Status: {employee.status}
-                </p>
-              </div>
+                <p className={`text-sm mt-1 ${employee.status === 'Active' ? 'text-green-600' : 'text-red-600'}`}>
+		  Status: {employee.status}
+		</p>
+	      </div>
             </div>
             <div className="flex space-x-2">
               <Button
