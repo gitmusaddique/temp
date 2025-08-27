@@ -438,7 +438,7 @@ export default function AttendanceView() {
       )}
 
       {/* Attendance Table */}
-      <div className="max-w-full mx-auto px-4 py-8"></div>
+      <div className="max-w-full mx-auto px-4 py-8">
         <Card className="overflow-hidden">
           <CardHeader className="text-center bg-gray-50 border-b">
             <CardTitle className="text-lg font-medium" data-testid="text-company-name">
