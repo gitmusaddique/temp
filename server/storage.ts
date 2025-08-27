@@ -299,7 +299,7 @@ export class SqliteStorage implements IStorage {
       employeeId: row.employee_id,
       name: row.name,
       designation: row.designation,
-      designationOrder: row.designation_order,
+      designationOrder: row.designation_order || 999,
       department: row.department,
       status: row.status,
       serialNumber: row.serial_number,

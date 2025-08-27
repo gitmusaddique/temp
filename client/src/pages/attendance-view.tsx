@@ -130,11 +130,11 @@ export default function AttendanceView() {
     ? employees 
     : employees.filter(emp => emp.designation === selectedDesignation);
 
-  // Sort employees by designation_order from database, then by name within each designation
+  // Sort employees by designationOrder from database, then by name within each designation
   const sortedFilteredEmployees = [...designationFilteredEmployees].sort((a, b) => {
     // Get designation order from database field (default to 999 if not set)
-    const aOrder = (a as any).designationOrder || 999;
-    const bOrder = (b as any).designationOrder || 999;
+    const aOrder = a.designationOrder || 999;
+    const bOrder = b.designationOrder || 999;
 
     // First sort by designation order (lower number = higher priority)
     if (aOrder !== bOrder) {
