@@ -74,6 +74,41 @@ export class SqliteStorage implements IStorage {
       CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance_records (employee_id);
       CREATE INDEX IF NOT EXISTS idx_employee_serial ON employees (serial_number);
     `);
+
+    // Migration: Add designation_order column if it doesn't exist
+    try {
+      this.db.exec(`ALTER TABLE employees ADD COLUMN designation_order INTEGER DEFAULT 999;`);
+      console.log('Added designation_order column to existing employees table');
+      
+      // Update existing employees with proper designation order
+      const updateStmt = this.db.prepare(`
+        UPDATE employees 
+        SET designation_order = ? 
+        WHERE designation = ? AND designation_order = 999
+      `);
+      
+      const designationNumbers: Record<string, number> = {
+        'rig ic': 1,
+        'shift ic': 2,
+        'ass shift ic': 3,
+        'asst shift ic': 3,
+        'assistant shift ic': 3,
+        'topman': 4,
+        'top man': 4,
+        'rigman': 5,
+        'rig man': 5
+      };
+
+      for (const [designation, order] of Object.entries(designationNumbers)) {
+        updateStmt.run(order, designation);
+      }
+      
+    } catch (error: any) {
+      // Column already exists, ignore the error
+      if (!error.message.includes('duplicate column name')) {
+        console.error('Migration error:', error);
+      }
+    }
   }
 
   private prepareStatements() {
