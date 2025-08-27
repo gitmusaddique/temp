@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, X } from "lucide-react";
 import { Link } from "wouter";
 import type { Employee, AttendanceRecord } from "@shared/schema";
 import ExportModal from "@/components/export-modal";
@@ -380,8 +380,9 @@ export default function AttendanceView() {
                   size="sm"
                   onClick={() => setHideSelectionPanel(true)}
                   data-testid="button-hide-selection-panel"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-300 hover:border-red-400"
                 >
-                  Hide Selection Panel
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
             </CardHeader>
