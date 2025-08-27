@@ -146,7 +146,7 @@ export default function SettingsModal({ isOpen, onClose, onSettingsUpdate }: Set
             />
           </div>
 
-          <div className="flex justify-between pt-4">
+          <div className="modal-buttons">
             <Button
               variant="outline"
               onClick={onClose}
