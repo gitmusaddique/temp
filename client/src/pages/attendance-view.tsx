@@ -340,6 +340,7 @@ export default function AttendanceView() {
                     }
                   }}
                   data-testid="button-toggle-employee-view"
+                  className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-4 py-2"
                 >
                   {showAllEmployees ? "Select Employees" : "Show All"}
                 </Button>
@@ -349,6 +350,7 @@ export default function AttendanceView() {
                     variant="outline"
                     onClick={() => setHideSelectionPanel(false)}
                     data-testid="button-show-selection-panel"
+                    className="bg-green-600 hover:bg-green-700 text-white border-2 border-green-600 hover:border-green-700 font-medium px-4 py-2"
                   >
                     Show Selection Panel ({selectedEmployees.size} selected)
                   </Button>
