@@ -423,13 +423,13 @@ export default function AttendanceView() {
                 Select attendance status:
               </p>
               
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <Button
                   variant="outline"
-                  className={`justify-start ${
+                  className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "" 
-                      ? "bg-white text-black border-black border-2" 
-                      : "bg-white text-black border-gray-300 hover:bg-gray-50"
+                      ? "bg-gray-100 text-gray-900 border-gray-600 shadow-sm" 
+                      : "bg-white text-gray-700 border-gray-400 hover:bg-gray-50 hover:border-gray-500"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
@@ -443,10 +443,10 @@ export default function AttendanceView() {
                 
                 <Button
                   variant="outline"
-                  className={`justify-start ${
+                  className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "P" 
-                      ? "bg-green-50 text-green-700 border-green-300 border-2" 
-                      : "bg-green-50 text-green-700 border-green-200 hover:bg-green-100"
+                      ? "bg-green-100 text-green-800 border-green-600 shadow-sm" 
+                      : "bg-green-50 text-green-700 border-green-400 hover:bg-green-100 hover:border-green-500"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
@@ -460,10 +460,10 @@ export default function AttendanceView() {
                 
                 <Button
                   variant="outline"
-                  className={`justify-start ${
+                  className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "A" 
-                      ? "bg-red-50 text-red-700 border-red-300 border-2" 
-                      : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                      ? "bg-red-100 text-red-800 border-red-600 shadow-sm" 
+                      : "bg-red-50 text-red-700 border-red-400 hover:bg-red-100 hover:border-red-500"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
@@ -477,10 +477,10 @@ export default function AttendanceView() {
                 
                 <Button
                   variant="outline"
-                  className={`justify-start ${
+                  className={`justify-start border-2 transition-all duration-200 ${
                     selectedCell.currentStatus === "OT" 
-                      ? "bg-yellow-50 text-yellow-800 border-yellow-300 border-2" 
-                      : "bg-yellow-50 text-yellow-800 border-yellow-200 hover:bg-yellow-100"
+                      ? "bg-yellow-100 text-yellow-900 border-yellow-600 shadow-sm" 
+                      : "bg-yellow-50 text-yellow-800 border-yellow-400 hover:bg-yellow-100 hover:border-yellow-500"
                   }`}
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
