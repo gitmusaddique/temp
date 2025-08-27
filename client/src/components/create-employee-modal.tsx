@@ -119,8 +119,8 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
             <Label htmlFor="designation" className="text-sm font-medium text-foreground">
               Designation *
             </Label>
-            <Select 
-              value={formData.designation} 
+            <Select
+              value={formData.designation}
               onValueChange={(value) => setFormData({ ...formData, designation: value })}
             >
               <SelectTrigger className={errors.designation ? "border-red-500" : ""} data-testid="select-employee-designation">
@@ -142,17 +142,17 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
           </div>
 
           <div className="modal-buttons">
-            <Button 
-              type="button" 
-              variant="outline" 
+            <Button
+              type="button"
+              variant="outline"
               onClick={onClose}
               data-testid="button-cancel"
-              className="min-w-24"
+              className="min-w-24 bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium"
             >
               Cancel
             </Button>
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               variant="default"
               data-testid="button-submit"
               className="min-w-32"

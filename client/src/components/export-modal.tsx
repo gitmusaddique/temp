@@ -173,7 +173,11 @@ export default function ExportModal({
           </div>
 
           <div className="modal-buttons">
-            <Button variant="outline" onClick={onClose} className="min-w-24">
+            <Button
+              variant="outline"
+              onClick={onClose}
+              className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium"
+            >
               Cancel
             </Button>
             <Button variant="default" onClick={handleExport} className="min-w-24" disabled={isLoading} data-testid="button-generate-export">

@@ -11,12 +11,12 @@ interface DeleteConfirmationModalProps {
   isDeleting: boolean;
 }
 
-export default function DeleteConfirmationModal({ 
-  isOpen, 
-  onClose, 
-  employee, 
-  onConfirm, 
-  isDeleting 
+export default function DeleteConfirmationModal({
+  isOpen,
+  onClose,
+  employee,
+  onConfirm,
+  isDeleting
 }: DeleteConfirmationModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -44,15 +44,16 @@ export default function DeleteConfirmationModal({
         </p>
 
         <div className="modal-buttons">
-          <Button 
+          <Button
             variant="outline"
             onClick={onClose}
             disabled={isDeleting}
             data-testid="button-cancel-delete"
+            className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium"
           >
             Cancel
           </Button>
-          <Button 
+          <Button
             variant="destructive"
             onClick={onConfirm}
             disabled={isDeleting}
