@@ -203,14 +203,18 @@ export default function AttendanceView() {
 
 
 
+  // Local state for remarks to avoid constant API calls
+  const [remarksState, setRemarksState] = useState<Record<string, string>>({});
+
   // Reset selections when designation filter changes
   React.useEffect(() => {
-    if (selectedDesignation !== "all" && filteredEmployees.length > 0) {
-      // Clear selections that are no longer in the filtered list
-      const filteredIds = new Set(filteredEmployees.map(emp => emp.id));
+    if (selectedDesignation !== "all") {
+      const filteredIds = new Set(employees.filter(emp => 
+        emp.designation === selectedDesignation
+      ).map(emp => emp.id));
       setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
     }
-  }, [selectedDesignation, filteredEmployees]);
+  }, [selectedDesignation, employees]);
 
   // Initialize selectedEmployees with all active employees when data loads
   React.useEffect(() => {
@@ -218,13 +222,29 @@ export default function AttendanceView() {
       const activeEmployeeIds = employees.filter(emp => emp.isActive).map(emp => emp.id);
       setSelectedEmployees(new Set(activeEmployeeIds));
     }
-  }, [employees, selectedEmployees.size]);
+  }, [employees.length, selectedEmployees.size]);
 
   // Reset modal designation filter when main designation changes
   React.useEffect(() => {
     setModalDesignationFilter("all");
-    setModalStatusFilter("active"); // Reset to active filter
+    setModalStatusFilter("active");
   }, [selectedDesignation]);
+
+  // Initialize remarks state when attendance records change
+  React.useEffect(() => {
+    if (attendanceRecords.length > 0) {
+      const newRemarksState: Record<string, string> = {};
+      attendanceRecords.forEach(record => {
+        if (record.remarks && !(record.employeeId in remarksState)) {
+          newRemarksState[record.employeeId] = record.remarks;
+        }
+      });
+
+      if (Object.keys(newRemarksState).length > 0) {
+        setRemarksState(prev => ({ ...prev, ...newRemarksState }));
+      }
+    }
+  }, [attendanceRecords.length]);
 
   // Toggle individual employee selection
   const toggleEmployeeSelection = (employeeId: string) => {
@@ -274,27 +294,6 @@ export default function AttendanceView() {
     const status = getAttendanceStatus(employeeId, day);
     return status === "P" || status === "OT";
   };
-
-  // Local state for remarks to avoid constant API calls
-  const [remarksState, setRemarksState] = useState<Record<string, string>>({});
-
-  // Initialize remarks state when attendance records change (only if not already set)
-  React.useEffect(() => {
-    if (attendanceRecords.length > 0) {
-      const newRemarksState: Record<string, string> = {};
-      attendanceRecords.forEach(record => {
-        // Only update if we don't already have local state for this employee
-        if (record.remarks && !(record.employeeId in remarksState)) {
-          newRemarksState[record.employeeId] = record.remarks;
-        }
-      });
-
-      // Only update if we have new data to set
-      if (Object.keys(newRemarksState).length > 0) {
-        setRemarksState(prev => ({ ...prev, ...newRemarksState }));
-      }
-    }
-  }, [attendanceRecords, remarksState]);
 
   // Debounced remarks update
   const updateRemarksMutation = useMutation({
