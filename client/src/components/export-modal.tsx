@@ -115,6 +115,33 @@ export default function ExportModal({
     "July", "August", "September", "October", "November", "December"
   ];
 
+  // Generate available months and years (current and previous only)
+  const getCurrentDate = () => new Date();
+  const currentDate = getCurrentDate();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+
+  const getAvailableYears = () => {
+    const years = [];
+    for (let year = 2025; year <= currentYear; year++) {
+      years.push(year);
+    }
+    return years.reverse(); // Show most recent first
+  };
+
+  const getAvailableMonths = (year: number) => {
+    const months = [];
+    const maxMonth = year === currentYear ? currentMonth : 12;
+
+    for (let month = 1; month <= maxMonth; month++) {
+      months.push({
+        value: month,
+        label: monthNames[month - 1]
+      });
+    }
+    return months.reverse(); // Show most recent first
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="w-full max-w-md" data-testid="modal-export" aria-describedby="export-description">
@@ -136,9 +163,9 @@ export default function ExportModal({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {monthNames.map((month, index) => (
-                  <SelectItem key={index + 1} value={(index + 1).toString()}>
-                    {month}
+                {getAvailableMonths(parseInt(exportData.year)).map(({ value, label }) => (
+                  <SelectItem key={value} value={value.toString()}>
+                    {label}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -147,14 +174,26 @@ export default function ExportModal({
 
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-1">Year</Label>
-            <Select value={exportData.year} onValueChange={(value) => setExportData({ ...exportData, year: value })}>
+            <Select value={exportData.year} onValueChange={(value) => {
+              const newYear = parseInt(value);
+              const availableMonths = getAvailableMonths(newYear);
+              const currentMonthValue = parseInt(exportData.month);
+              
+              // If current month is not available in the new year, reset to the latest available month
+              const isCurrentMonthAvailable = availableMonths.some(m => m.value === currentMonthValue);
+              const newMonth = isCurrentMonthAvailable ? exportData.month : availableMonths[0]?.value.toString() || "1";
+              
+              setExportData({ ...exportData, year: value, month: newMonth });
+            }}>
               <SelectTrigger data-testid="select-export-year">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="2024">2024</SelectItem>
-                <SelectItem value="2025">2025</SelectItem>
-                <SelectItem value="2026">2026</SelectItem>
+                {getAvailableYears().map(year => (
+                  <SelectItem key={year} value={year.toString()}>
+                    {year}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

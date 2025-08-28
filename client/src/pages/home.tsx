@@ -37,6 +37,20 @@ export default function Home() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Generate default month and year (same logic as attendance page)
+  const getCurrentDate = () => new Date();
+  const currentDate = getCurrentDate();
+  const currentMonth = currentDate.getMonth() + 1;
+  const currentYear = currentDate.getFullYear();
+  
+  const getDefaultMonth = () => {
+    return currentMonth <= 12 ? currentMonth.toString() : "12";
+  };
+  
+  const getDefaultYear = () => {
+    return currentYear >= 2025 ? currentYear.toString() : "2025";
+  };
+
   // Fetch app settings from the database
   const { data: settings, isLoading: isLoadingSettings } = useQuery<{ companyName: string; rigName: string }>({
     queryKey: ["/api/settings"],
@@ -375,6 +389,8 @@ export default function Home() {
       <ExportModal
         isOpen={showExportModal}
         onClose={() => setShowExportModal(false)}
+        defaultMonth={getDefaultMonth()}
+        defaultYear={getDefaultYear()}
       />
 
       <DeleteConfirmationModal
