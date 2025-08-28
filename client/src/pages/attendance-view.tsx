@@ -205,7 +205,7 @@ export default function AttendanceView() {
 
   // Reset selections when designation filter changes
   React.useEffect(() => {
-    if (selectedDesignation !== "all") {
+    if (selectedDesignation !== "all" && filteredEmployees.length > 0) {
       // Clear selections that are no longer in the filtered list
       const filteredIds = new Set(filteredEmployees.map(emp => emp.id));
       setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
@@ -218,7 +218,7 @@ export default function AttendanceView() {
       const activeEmployeeIds = employees.filter(emp => emp.isActive).map(emp => emp.id);
       setSelectedEmployees(new Set(activeEmployeeIds));
     }
-  }, [employees]);
+  }, [employees, selectedEmployees.size]);
 
   // Reset modal designation filter when main designation changes
   React.useEffect(() => {
@@ -280,19 +280,21 @@ export default function AttendanceView() {
 
   // Initialize remarks state when attendance records change (only if not already set)
   React.useEffect(() => {
-    const newRemarksState: Record<string, string> = {};
-    attendanceRecords.forEach(record => {
-      // Only update if we don't already have local state for this employee
-      if (record.remarks && !(record.employeeId in remarksState)) {
-        newRemarksState[record.employeeId] = record.remarks;
-      }
-    });
+    if (attendanceRecords.length > 0) {
+      const newRemarksState: Record<string, string> = {};
+      attendanceRecords.forEach(record => {
+        // Only update if we don't already have local state for this employee
+        if (record.remarks && !(record.employeeId in remarksState)) {
+          newRemarksState[record.employeeId] = record.remarks;
+        }
+      });
 
-    // Only update if we have new data to set
-    if (Object.keys(newRemarksState).length > 0) {
-      setRemarksState(prev => ({ ...prev, ...newRemarksState }));
+      // Only update if we have new data to set
+      if (Object.keys(newRemarksState).length > 0) {
+        setRemarksState(prev => ({ ...prev, ...newRemarksState }));
+      }
     }
-  }, [attendanceRecords]);
+  }, [attendanceRecords, remarksState]);
 
   // Debounced remarks update
   const updateRemarksMutation = useMutation({
