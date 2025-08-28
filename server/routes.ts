@@ -224,7 +224,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       "NAME",
       "DESIGNATION"
     ];
-    
+
     if (includeShifts) {
       // Add day headers with D/N subheaders
       dayColumns.forEach(day => {
@@ -234,7 +234,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       // Add simple day headers
       headers.push(...dayColumns.map(day => day.toString()));
     }
-    
+
     headers.push("T/ON DUTY");
     if (!includeShifts) {
       headers.push("OT DAYS", "REMARKS");
@@ -299,7 +299,7 @@ app.post("/api/export/xlsx", async (req, res) => {
     headers.forEach((header, index) => {
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
-      
+
       // Special styling for shift headers
       let fillColor = 'FFE6E6E6';
       if (includeShifts && header.includes('-D')) {
@@ -307,7 +307,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       } else if (includeShifts && header.includes('-N')) {
         fillColor = 'FFF3E5F5'; // Light purple for Night shift
       }
-      
+
       cell.style = {
         font: { bold: true, size: 11 },
         alignment: { horizontal: 'center', vertical: 'middle' },
@@ -325,7 +325,7 @@ app.post("/api/export/xlsx", async (req, res) => {
     employees.forEach((employee, index) => {
       const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
       const shiftRecord = shiftAttendance.find(a => a.employeeId === employee.id);
-      
+
       let attendanceData: Record<string, string> = {};
       let shiftData: Record<string, string> = {};
 
@@ -365,22 +365,22 @@ app.post("/api/export/xlsx", async (req, res) => {
         dayColumns.forEach(day => {
           const status = attendanceData[day.toString()];
           const shift = shiftData[day.toString()];
-          
+
           // Day shift column
           const dayShiftValue = (status === 'P' || status === 'OT') && shift === 'D' ? 'P' : '';
           row.getCell(cellIndex).value = dayShiftValue;
           cellIndex++;
-          
+
           // Night shift column  
           const nightShiftValue = (status === 'P' || status === 'OT') && shift === 'N' ? 'P' : '';
           row.getCell(cellIndex).value = nightShiftValue;
           cellIndex++;
         });
-        
+
         // Calculate shift totals
         const shiftPresentDays = Object.values(shiftData).filter(shift => shift === 'D' || shift === 'N').length;
         row.getCell(cellIndex).value = shiftPresentDays > 0 ? shiftPresentDays : '';
-        
+
       } else {
         // Add regular day columns
         dayColumns.forEach(day => {
@@ -455,7 +455,7 @@ app.post("/api/export/xlsx", async (req, res) => {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
             const headerForColumn = headers[colNumber - 1];
-            
+
             if (includeShifts) {
               // Color shift columns
               if (headerForColumn && headerForColumn.includes('-D')) {
@@ -517,7 +517,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       { width: 25 },  // NAME
       { width: 18 },  // DESIGNATION
     ];
-    
+
     if (includeShifts) {
       // Add D/N columns (2 per day)
       dayColumns.forEach(() => {
@@ -532,25 +532,29 @@ app.post("/api/export/xlsx", async (req, res) => {
       columnWidths.push({ width: 10 }); // OT DAYS
       columnWidths.push({ width: 30 }); // REMARKS
     }
-    
+
     worksheet.columns = columnWidths;
 
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();
 
-    // Set response headers
-    const filename = `attendance_${monthNames[monthNum - 1]}_${yearNum}.xlsx`;
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    // Set response headers for file download with unique filename
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const tableTypeSuffix = tableType === "shifts" ? "shifts" : "attendance";
+    const filename = `${tableTypeSuffix}_${monthNames[monthNum - 1].toLowerCase()}_${yearNum}_${timestamp}.xlsx`;
+
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    res.setHeader('Content-Length', buffer.length);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
 
-    res.send(buffer);
+    // Write workbook to response
+    await workbook.xlsx.write(res);
+    res.end();
 
-  } catch (error) {
-    console.error('XLSX export error:', error);
-    res.status(500).json({
-      message: "Failed to generate XLSX export",
-      error: process.env.NODE_ENV === 'development' ? error.message : undefined
+  } catch (error: any) {
+    console.error('Export error:', error);
+    res.status(500).json({ 
+      message: "Failed to export data", 
+      error: error.message 
     });
   }
 });

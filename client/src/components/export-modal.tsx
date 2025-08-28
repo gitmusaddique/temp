@@ -34,7 +34,7 @@ export default function ExportModal({
     year: defaultYear,
     withColors: true,
     includeShifts: false,
-    tableType: "attendance" as "attendance" | "shifts" | "both",
+    tableType: "attendance" as "attendance" | "shifts",
   });
   const { toast } = useToast();
 
@@ -217,11 +217,11 @@ export default function ExportModal({
           </div>
 
           <div>
-            <Label className="text-sm font-medium text-gray-700 mb-2">Select Table(s) to Export</Label>
+            <Label className="text-sm font-medium text-gray-700 mb-2">Select Table to Export</Label>
             <div className="p-3 bg-gray-50 rounded-lg">
               <RadioGroup
                 value={exportData.tableType}
-                onValueChange={(value: "attendance" | "shifts" | "both") => 
+                onValueChange={(value: "attendance" | "shifts") => 
                   setExportData({ ...exportData, tableType: value })
                 }
                 className="space-y-2"
@@ -229,22 +229,14 @@ export default function ExportModal({
                 <div className="flex items-center space-x-2">
                   <RadioGroupItem value="attendance" id="attendance" />
                   <Label htmlFor="attendance" className="text-sm font-medium">
-                    Attendance Table Only
+                    Attendance Table
                   </Label>
                 </div>
                 {showShiftTable && (
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="shifts" id="shifts" />
                     <Label htmlFor="shifts" className="text-sm font-medium">
-                      Shift Table Only (Day/Night)
-                    </Label>
-                  </div>
-                )}
-                {showShiftTable && (
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="both" id="both" />
-                    <Label htmlFor="both" className="text-sm font-medium">
-                      Both Tables (Separate Sheets)
+                      Shift Table (Day/Night)
                     </Label>
                   </div>
                 )}
@@ -300,8 +292,7 @@ export default function ExportModal({
                 <p className="text-sm text-blue-800" data-testid="text-export-info">
                   Excel export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with {
                     exportData.tableType === "attendance" ? "attendance table" :
-                    exportData.tableType === "shifts" ? "shift table (Day/Night)" :
-                    "both attendance and shift tables in separate sheets"
+                    "shift table (Day/Night)"
                   } for selected month/year.
                 </p>
               </div>
