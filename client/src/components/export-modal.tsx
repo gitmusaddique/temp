@@ -17,6 +17,7 @@ interface ExportModalProps {
   defaultYear?: string;
   selectedEmployees?: Set<string>;
   showAllEmployees?: boolean;
+  showShiftTable?: boolean;
 }
 
 export default function ExportModal({
@@ -25,13 +26,15 @@ export default function ExportModal({
   defaultMonth = new Date().getMonth() + 1 <= 12 ? (new Date().getMonth() + 1).toString() : "12",
   defaultYear = new Date().getFullYear().toString(),
   selectedEmployees = new Set(),
-  showAllEmployees = true
+  showAllEmployees = true,
+  showShiftTable = false
 }: ExportModalProps) {
   const [exportData, setExportData] = useState({
     month: defaultMonth,
     year: defaultYear,
     withColors: true,
     includeShifts: false,
+    tableType: "attendance" as "attendance" | "shifts" | "both",
   });
   const { toast } = useToast();
 
@@ -65,7 +68,8 @@ export default function ExportModal({
             companyName: appSettings?.companyName || 'Siddik',
             rigName: appSettings?.rigName || 'ROM-100-II',
             withColors: exportData.withColors,
-            includeShifts: exportData.includeShifts
+            includeShifts: exportData.includeShifts,
+            tableType: exportData.tableType
           }),
       });
 
@@ -213,6 +217,42 @@ export default function ExportModal({
           </div>
 
           <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2">Select Table(s) to Export</Label>
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <RadioGroup
+                value={exportData.tableType}
+                onValueChange={(value: "attendance" | "shifts" | "both") => 
+                  setExportData({ ...exportData, tableType: value })
+                }
+                className="space-y-2"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="attendance" id="attendance" />
+                  <Label htmlFor="attendance" className="text-sm font-medium">
+                    Attendance Table Only
+                  </Label>
+                </div>
+                {showShiftTable && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="shifts" id="shifts" />
+                    <Label htmlFor="shifts" className="text-sm font-medium">
+                      Shift Table Only (Day/Night)
+                    </Label>
+                  </div>
+                )}
+                {showShiftTable && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="both" id="both" />
+                    <Label htmlFor="both" className="text-sm font-medium">
+                      Both Tables (Separate Sheets)
+                    </Label>
+                  </div>
+                )}
+              </RadioGroup>
+            </div>
+          </div>
+
+          <div>
             <Label className="text-sm font-medium text-gray-700 mb-2">Export Options</Label>
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="space-y-3">
@@ -258,7 +298,11 @@ export default function ExportModal({
               <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2" />
               <div>
                 <p className="text-sm text-blue-800" data-testid="text-export-info">
-                  Excel export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with attendance grid for selected month/year.
+                  Excel export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with {
+                    exportData.tableType === "attendance" ? "attendance table" :
+                    exportData.tableType === "shifts" ? "shift table (Day/Night)" :
+                    "both attendance and shift tables in separate sheets"
+                  } for selected month/year.
                 </p>
               </div>
             </div>

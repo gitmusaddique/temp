@@ -524,14 +524,14 @@ export default function AttendanceView() {
     if (!start || !end || start.trim() === "" || end.trim() === "") {
       return false;
     }
-    
+
     const startDay = parseInt(start);
     const endDay = parseInt(end);
-    
+
     if (isNaN(startDay) || isNaN(endDay) || startDay < 1 || endDay < 1 || startDay > daysInMonth || endDay > daysInMonth) {
       return false;
     }
-    
+
     return startDay <= endDay;
   };
 
@@ -1207,7 +1207,7 @@ export default function AttendanceView() {
                             {dayColumns.map((day) => {
                               const canEnter = canEnterShift(employee.id, day);
                               const currentShift = getShiftAttendance(employee.id, day);
-                              
+
                               return (
                                 <td key={day} className="border-r">
                                   <div className="grid grid-cols-2 h-full">
@@ -1524,6 +1524,72 @@ export default function AttendanceView() {
         </DialogContent>
       </Dialog>
 
+      {/* Remarks Modal */}
+      <Dialog open={!!selectedRemarksEmployee} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedRemarksEmployee(null);
+        }
+      }}>
+        <DialogContent className="max-w-lg" aria-describedby="remarks-modal-description">
+          <DialogHeader>
+            <DialogTitle>
+              Edit Remarks - {selectedRemarksEmployee?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div id="remarks-modal-description" className="sr-only">
+            Edit remarks for the selected employee
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Remarks
+              </label>
+              <textarea
+                value={selectedRemarksEmployee ? (remarksState[selectedRemarksEmployee.id] || "") : ""}
+                onChange={(e) => {
+                  if (selectedRemarksEmployee) {
+                    const newValue = e.target.value;
+                    setRemarksState(prev => ({
+                      ...prev,
+                      [selectedRemarksEmployee.id]: newValue
+                    }));
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-none"
+                placeholder="Enter remarks for this employee..."
+                data-testid="textarea-remarks"
+                rows={5}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedRemarksEmployee(null)}
+                data-testid="button-cancel-remarks"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedRemarksEmployee) {
+                    const remarksValue = remarksState[selectedRemarksEmployee.id] || "";
+                    debouncedUpdateRemarks(selectedRemarksEmployee.id, remarksValue);
+                    setSelectedRemarksEmployee(null);
+                  }
+                }}
+                disabled={updateRemarksMutation.isPending}
+                data-testid="button-save-remarks"
+              >
+                {updateRemarksMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Bulk Operations Modal */}
       <Dialog open={showDateRangeModal} onOpenChange={(open) => {
         if (!open) {
@@ -1610,7 +1676,7 @@ export default function AttendanceView() {
 
             <div className="space-y-3">
               <p className="text-sm font-medium text-gray-700">Fill Range With:</p>
-              
+
               <div className="grid grid-cols-2 gap-2">
                 <Button
                   onClick={handleBulkClear}
@@ -1621,7 +1687,7 @@ export default function AttendanceView() {
                 >
                   Blank
                 </Button>
-                
+
                 <Button
                   onClick={() => handleBulkFill("P")}
                   disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
@@ -1631,7 +1697,7 @@ export default function AttendanceView() {
                 >
                   Present (P)
                 </Button>
-                
+
                 <Button
                   onClick={() => handleBulkFill("A")}
                   disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
@@ -1641,7 +1707,7 @@ export default function AttendanceView() {
                 >
                   Absent (A)
                 </Button>
-                
+
                 <Button
                   onClick={() => handleBulkFill("OT")}
                   disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
@@ -1657,7 +1723,7 @@ export default function AttendanceView() {
                 <>
                   <div className="border-t pt-4">
                     <p className="text-sm font-medium text-gray-700 mb-3">Fill Shift Range With:</p>
-                    
+
                     <div className="grid grid-cols-3 gap-2">
                       <Button
                         onClick={() => handleBulkShiftFill("")}
@@ -1668,7 +1734,7 @@ export default function AttendanceView() {
                       >
                         Clear Shift
                       </Button>
-                      
+
                       <Button
                         onClick={() => handleBulkShiftFill("D")}
                         disabled={!selectedRowId || bulkUpdateShiftAttendanceMutation.isPending}
@@ -1678,7 +1744,7 @@ export default function AttendanceView() {
                       >
                         Day (D)
                       </Button>
-                      
+
                       <Button
                         onClick={() => handleBulkShiftFill("N")}
                         disabled={!selectedRowId || bulkUpdateShiftAttendanceMutation.isPending}

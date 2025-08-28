@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 app.post("/api/export/xlsx", async (req, res) => {
   try {
-    const { month, year, selectedEmployees, withColors, includeShifts } = req.body; // Added withColors and includeShifts options
+    const { month, year, selectedEmployees, withColors, includeShifts, tableType = "attendance" } = req.body; // Added tableType option
 
     // Enhanced validation with current date check
     const monthNum = parseInt(month);
