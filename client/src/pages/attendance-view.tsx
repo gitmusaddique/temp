@@ -46,6 +46,7 @@ export default function AttendanceView() {
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [bulkAction, setBulkAction] = useState<"fill" | "clear" | null>(null);
   const [hoveredColumn, setHoveredColumn] = useState<number | null>(null);
+  const [selectedRemarksEmployee, setSelectedRemarksEmployee] = useState<{id: string, name: string} | null>(null);
 
   // Load settings from database
   const { data: settings } = useQuery({
@@ -872,21 +873,18 @@ export default function AttendanceView() {
                             {totalOT}
                           </td>
                           <td className="px-4 py-2 text-center text-sm" data-testid={`text-remarks-${employee.id}`}>
-                            <input
-                              type="text"
-                              value={remarksState[employee.id] || ""}
-                              onChange={(e) => {
-                                const newValue = e.target.value;
-                                setRemarksState(prev => ({
-                                  ...prev,
-                                  [employee.id]: newValue
-                                }));
-                                debouncedUpdateRemarks(employee.id, newValue);
-                              }}
-                              className="w-full px-2 py-1 text-xs border border-gray-200 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-                              placeholder="Add remarks..."
-                              data-testid={`input-remarks-${employee.id}`}
-                            />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setSelectedRemarksEmployee({id: employee.id, name: employee.name})}
+                              className="text-xs px-2 py-1 h-7 max-w-full"
+                              data-testid={`button-remarks-${employee.id}`}
+                            >
+                              {remarksState[employee.id] ? 
+                                <span className="truncate max-w-20">{remarksState[employee.id]}</span> : 
+                                "Add Remarks"
+                              }
+                            </Button>
                           </td>
                         </tr>
                       );
@@ -1010,6 +1008,72 @@ export default function AttendanceView() {
         onClose={() => setShowSettingsModal(false)}
         onSettingsUpdate={handleSettingsUpdate}
       />
+
+      {/* Remarks Modal */}
+      <Dialog open={!!selectedRemarksEmployee} onOpenChange={(open) => {
+        if (!open) {
+          setSelectedRemarksEmployee(null);
+        }
+      }}>
+        <DialogContent className="max-w-lg" aria-describedby="remarks-modal-description">
+          <DialogHeader>
+            <DialogTitle>
+              Edit Remarks - {selectedRemarksEmployee?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div id="remarks-modal-description" className="sr-only">
+            Edit remarks for the selected employee
+          </div>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Remarks
+              </label>
+              <textarea
+                value={selectedRemarksEmployee ? (remarksState[selectedRemarksEmployee.id] || "") : ""}
+                onChange={(e) => {
+                  if (selectedRemarksEmployee) {
+                    const newValue = e.target.value;
+                    setRemarksState(prev => ({
+                      ...prev,
+                      [selectedRemarksEmployee.id]: newValue
+                    }));
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 min-h-[120px] resize-none"
+                placeholder="Enter remarks for this employee..."
+                data-testid="textarea-remarks"
+                rows={5}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button
+                variant="outline"
+                onClick={() => setSelectedRemarksEmployee(null)}
+                data-testid="button-cancel-remarks"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (selectedRemarksEmployee) {
+                    const remarksValue = remarksState[selectedRemarksEmployee.id] || "";
+                    debouncedUpdateRemarks(selectedRemarksEmployee.id, remarksValue);
+                    setSelectedRemarksEmployee(null);
+                  }
+                }}
+                disabled={updateRemarksMutation.isPending}
+                data-testid="button-save-remarks"
+              >
+                {updateRemarksMutation.isPending ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Bulk Operations Modal */}
       <Dialog open={showDateRangeModal} onOpenChange={(open) => {
