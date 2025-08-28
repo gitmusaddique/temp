@@ -584,20 +584,18 @@ app.post("/api/export/xlsx", async (req, res) => {
 
     // Set column widths
     let columnWidths = [
-      { width: 8 },   // SL.NO
-      { width: 25 },  // NAME
-      { width: 18 },  // DESIGNATION
+      { width: 6 },   // SL.NO
+      { width: 20 },  // NAME
+      { width: 15 },  // DESIGNATION
     ];
 
     if (includeShifts) {
-      // Add STATUS column for shift table
-      columnWidths.push({ width: 10 }); // STATUS
       // Add D/N columns (2 per day) with better spacing
       dayColumns.forEach(() => {
-        columnWidths.push({ width: 3 }); // D column
-        columnWidths.push({ width: 3 }); // N column
+        columnWidths.push({ width: 4 }); // D column
+        columnWidths.push({ width: 4 }); // N column
       });
-      columnWidths.push({ width: 15 }); // T/ON DUTY
+      columnWidths.push({ width: 18 }); // T/ON DUTY - increased width
     } else {
       // Add regular day columns
       columnWidths.push({ width: 10 }); // STATUS
