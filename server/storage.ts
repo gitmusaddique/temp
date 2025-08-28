@@ -15,6 +15,9 @@ export interface IStorage {
   getAttendanceRecord(employeeId: string, month: number, year: number): Promise<AttendanceRecord | undefined>;
   createOrUpdateAttendance(attendance: InsertAttendance): Promise<AttendanceRecord>;
   getAttendanceForMonth(month: number, year: number): Promise<AttendanceRecord[]>;
+  // Shift Attendance operations
+  getShiftAttendanceForMonth(month: number, year: number): Promise<any[]>; // Use 'any' for now, define a specific type later
+  createOrUpdateShiftAttendance(attendance: any): Promise<any>; // Use 'any' for now, define a specific type later
   // Settings operations
   getSettings(): Promise<{ companyName: string; rigName: string }>;
   updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }>;
@@ -73,6 +76,19 @@ export class SqliteStorage implements IStorage {
         UNIQUE(employee_id, month, year)
       );
 
+      CREATE TABLE IF NOT EXISTS shift_attendance_records (
+        id TEXT PRIMARY KEY,
+        employee_id TEXT NOT NULL,
+        month INTEGER NOT NULL,
+        year INTEGER NOT NULL,
+        shift_data TEXT, -- JSON string, e.g., { "1": "D", "2": "N", "3": "P" }
+        total_on_duty INTEGER DEFAULT 0,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (employee_id) REFERENCES employees (id) ON DELETE CASCADE,
+        UNIQUE(employee_id, month, year)
+      );
+
       CREATE TABLE IF NOT EXISTS app_settings (
         id TEXT PRIMARY KEY DEFAULT 'default',
         company_name TEXT NOT NULL DEFAULT 'Company Name',
@@ -84,6 +100,8 @@ export class SqliteStorage implements IStorage {
       CREATE INDEX IF NOT EXISTS idx_attendance_month_year ON attendance_records (month, year);
       CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance_records (employee_id);
       CREATE INDEX IF NOT EXISTS idx_employee_serial ON employees (serial_number);
+      CREATE INDEX IF NOT EXISTS idx_shift_attendance_month_year ON shift_attendance_records (month, year);
+      CREATE INDEX IF NOT EXISTS idx_shift_attendance_employee ON shift_attendance_records (employee_id);
     `);
 
     // Initialize default settings if they don't exist
@@ -174,9 +192,10 @@ export class SqliteStorage implements IStorage {
         WHERE employee_id = ? AND month = ? AND year = ?
       `),
       createOrUpdateAttendance: this.db.prepare(`
-        INSERT INTO attendance_records (id, employee_id, month, year, attendance_data, total_on_duty, ot_days, remarks)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(employee_id, month, year) DO UPDATE SET
+        INSERT INTO attendance_records (id, employee_id, month, year, attendance_data, total_on_duty, ot_days, remarks, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(employee_id, month, year) 
+        DO UPDATE SET 
           attendance_data = excluded.attendance_data,
           total_on_duty = excluded.total_on_duty,
           ot_days = excluded.ot_days,
@@ -190,13 +209,32 @@ export class SqliteStorage implements IStorage {
         WHERE ar.month = ? AND ar.year = ?
         ORDER BY e.designation_order ASC, e.name ASC
       `),
+      
+      // Shift Attendance statements
+      getShiftAttendanceForMonth: this.db.prepare(`
+        SELECT sar.*, e.name as employee_name, e.employee_id as employee_code
+        FROM shift_attendance_records sar
+        LEFT JOIN employees e ON sar.employee_id = e.id
+        WHERE sar.month = ? AND sar.year = ?
+        ORDER BY e.designation_order ASC, e.name ASC
+      `),
+      createOrUpdateShiftAttendance: this.db.prepare(`
+        INSERT INTO shift_attendance_records 
+        (id, employee_id, month, year, shift_data, total_on_duty, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        ON CONFLICT(employee_id, month, year) 
+        DO UPDATE SET 
+          shift_data = excluded.shift_data,
+          total_on_duty = excluded.total_on_duty,
+          updated_at = CURRENT_TIMESTAMP
+      `),
 
       // Settings statements
       getSettings: this.db.prepare('SELECT * FROM app_settings WHERE id = ?'),
       updateSettings: this.db.prepare(`
         UPDATE app_settings 
         SET company_name = ?, rig_name = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE id = 'default'
       `)
     };
   }
@@ -350,6 +388,35 @@ export class SqliteStorage implements IStorage {
     return rows.map(row => this.mapAttendanceFromDb(row));
   }
 
+  // Shift Attendance operations
+  async getShiftAttendanceForMonth(month: number, year: number): Promise<any[]> {
+    const rows = this.statements.getShiftAttendanceForMonth.all(month, year);
+    return rows.map(row => this.mapShiftAttendanceFromDb(row));
+  }
+
+  async createOrUpdateShiftAttendance(attendance: any): Promise<any> {
+    const id = randomUUID();
+    const shiftDataJson = attendance.shiftData 
+      ? JSON.stringify(attendance.shiftData)
+      : null;
+
+    this.statements.createOrUpdateShiftAttendance.run(
+      id,
+      attendance.employeeId,
+      attendance.month,
+      attendance.year,
+      shiftDataJson,
+      attendance.totalOnDuty || 0
+    );
+
+    // Fetch and return the created/updated record
+    const record = await this.getShiftAttendanceRecord(attendance.employeeId, attendance.month, attendance.year);
+    if (!record) {
+      throw new Error('Failed to create or update shift attendance record');
+    }
+    return record;
+  }
+
   // Helper methods to map database rows to domain objects
   private mapEmployeeFromDb(row: any): Employee {
     return {
@@ -388,32 +455,38 @@ export class SqliteStorage implements IStorage {
     };
   }
 
-  // Settings operations
-  // async getSettings(): Promise<{ companyName: string; rigName: string }> {
-  //   const row = this.statements.getSettings.get('default');
-  //   if (!row) {
-  //     // Return default settings if none exist
-  //     return { companyName: 'Siddik', rigName: 'ROM-100-II' };
-  //   }
-  //   return {
-  //     companyName: row.company_name,
-  //     rigName: row.rig_name
-  //   };
-  // }
+  private mapShiftAttendanceFromDb(row: any): any {
+    let shiftData = null;
+    if (row.shift_data) {
+      try {
+        shiftData = JSON.parse(row.shift_data);
+      } catch (e) {
+        console.error('Failed to parse shift data:', e);
+        shiftData = {};
+      }
+    }
 
-  // async updateSettings(settings: { companyName: string; rigName: string }): Promise<{ companyName: string; rigName: string }> {
-  //   const result = this.statements.updateSettings.run(
-  //     settings.companyName,
-  //     settings.rigName,
-  //     'default'
-  //   );
+    return {
+      id: row.id,
+      employeeId: row.employee_id,
+      month: row.month,
+      year: row.year,
+      shiftData,
+      totalOnDuty: row.total_on_duty,
+      employeeName: row.employee_name,
+      employeeCode: row.employee_code,
+    };
+  }
 
-  //   if (result.changes === 0) {
-  //     throw new Error('Failed to update settings');
-  //   }
+  // Helper to get a single shift attendance record
+  private async getShiftAttendanceRecord(employeeId: string, month: number, year: number): Promise<any | undefined> {
+    const row = this.db.prepare(`
+      SELECT * FROM shift_attendance_records 
+      WHERE employee_id = ? AND month = ? AND year = ?
+    `).get(employeeId, month, year);
+    return row ? this.mapShiftAttendanceFromDb(row) : undefined;
+  }
 
-  //   return settings;
-  // }
 
   // Utility methods
   close() {

@@ -49,6 +49,15 @@ export const attendanceRecord = pgTable("attendance_records", {
   remarks: text("remarks"),
 });
 
+export const shiftAttendanceRecord = pgTable("shift_attendance_records", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  employeeId: text("employee_id").notNull(),
+  month: integer("month").notNull(),
+  year: integer("year").notNull(),
+  shiftData: text("shift_data").notNull(), // JSON string of daily shift attendance (D/N)
+  totalOnDuty: integer("total_on_duty").notNull().default(0),
+});
+
 export const insertAttendanceSchema = createInsertSchema(attendanceRecord).pick({
   employeeId: true,
   month: true,
@@ -59,5 +68,15 @@ export const insertAttendanceSchema = createInsertSchema(attendanceRecord).pick(
   remarks: true,
 });
 
+export const insertShiftAttendanceSchema = createInsertSchema(shiftAttendanceRecord).pick({
+  employeeId: true,
+  month: true,
+  year: true,
+  shiftData: true,
+  totalOnDuty: true,
+});
+
 export type InsertAttendance = z.infer<typeof insertAttendanceSchema>;
 export type AttendanceRecord = typeof attendanceRecord.$inferSelect;
+export type InsertShiftAttendance = z.infer<typeof insertShiftAttendanceSchema>;
+export type ShiftAttendanceRecord = typeof shiftAttendanceRecord.$inferSelect;

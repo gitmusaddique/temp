@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertEmployeeSchema, insertAttendanceSchema } from "@shared/schema";
+import { insertEmployeeSchema, insertAttendanceSchema, insertShiftAttendanceSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Static imports for export functionality
@@ -125,11 +125,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Shift attendance routes
+  app.get("/api/shift-attendance/:month/:year", async (req, res) => {
+    try {
+      const month = parseInt(req.params.month);
+      const year = parseInt(req.params.year);
+
+      if (isNaN(month) || isNaN(year) || month < 1 || month > 12) {
+        return res.status(400).json({ message: "Invalid month or year" });
+      }
+
+      const records = await storage.getShiftAttendanceForMonth(month, year);
+      res.json(records);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch shift attendance records" });
+    }
+  });
+
+  app.post("/api/shift-attendance", async (req, res) => {
+    try {
+      const validatedData = insertShiftAttendanceSchema.parse(req.body);
+      const record = await storage.createOrUpdateShiftAttendance(validatedData);
+      res.json(record);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid data", errors: error.errors });
+      }
+      res.status(500).json({ message: "Failed to save shift attendance record" });
+    }
+  });
+
 // Updated XLSX Export section - replace the existing app.post("/api/export/xlsx", ...) route
 
 app.post("/api/export/xlsx", async (req, res) => {
   try {
-    const { month, year, selectedEmployees, withColors } = req.body; // Added withColors option
+    const { month, year, selectedEmployees, withColors, includeShifts } = req.body; // Added withColors and includeShifts options
 
     // Enhanced validation with current date check
     const monthNum = parseInt(month);
@@ -153,6 +183,7 @@ app.post("/api/export/xlsx", async (req, res) => {
 
     let employees = await storage.getAllEmployees();
     const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
+    const shiftAttendance = includeShifts ? await storage.getShiftAttendanceForMonth(monthNum, yearNum) : [];
 
     // Filter employees if selectedEmployees array is provided AND filter out inactive employees
     if (selectedEmployees && Array.isArray(selectedEmployees) && selectedEmployees.length > 0) {
@@ -188,15 +219,26 @@ app.post("/api/export/xlsx", async (req, res) => {
     const worksheet = workbook.addWorksheet(`${monthNames[monthNum - 1]} ${yearNum}`);
 
     // Prepare headers
-    const headers = [
+    let headers = [
       "SL.NO",
       "NAME",
-      "DESIGNATION",
-      ...dayColumns.map(day => day.toString()),
-      "T/ON DUTY",
-      "OT DAYS",
-      "REMARKS"
+      "DESIGNATION"
     ];
+    
+    if (includeShifts) {
+      // Add day headers with D/N subheaders
+      dayColumns.forEach(day => {
+        headers.push(`${day}-D`, `${day}-N`);
+      });
+    } else {
+      // Add simple day headers
+      headers.push(...dayColumns.map(day => day.toString()));
+    }
+    
+    headers.push("T/ON DUTY");
+    if (!includeShifts) {
+      headers.push("OT DAYS", "REMARKS");
+    }
 
     // Add title rows
     worksheet.addRow([appSettings.companyName]);
@@ -257,10 +299,19 @@ app.post("/api/export/xlsx", async (req, res) => {
     headers.forEach((header, index) => {
       const cell = headerRow.getCell(index + 1);
       cell.value = header;
+      
+      // Special styling for shift headers
+      let fillColor = 'FFE6E6E6';
+      if (includeShifts && header.includes('-D')) {
+        fillColor = 'FFE3F2FD'; // Light blue for Day shift
+      } else if (includeShifts && header.includes('-N')) {
+        fillColor = 'FFF3E5F5'; // Light purple for Night shift
+      }
+      
       cell.style = {
         font: { bold: true, size: 11 },
         alignment: { horizontal: 'center', vertical: 'middle' },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6E6' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } },
         border: {
           top: { style: 'medium' },
           bottom: { style: 'medium' },
@@ -273,7 +324,10 @@ app.post("/api/export/xlsx", async (req, res) => {
     // Fill employee data
     employees.forEach((employee, index) => {
       const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
+      const shiftRecord = shiftAttendance.find(a => a.employeeId === employee.id);
+      
       let attendanceData: Record<string, string> = {};
+      let shiftData: Record<string, string> = {};
 
       if (attendanceRecord && attendanceRecord.attendanceData) {
         try {
@@ -286,10 +340,16 @@ app.post("/api/export/xlsx", async (req, res) => {
         }
       }
 
-      // Calculate totals
-      const attendanceValues = Object.values(attendanceData);
-      const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
-      const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
+      if (includeShifts && shiftRecord && shiftRecord.shiftData) {
+        try {
+          shiftData = typeof shiftRecord.shiftData === 'string'
+            ? JSON.parse(shiftRecord.shiftData)
+            : shiftRecord.shiftData;
+        } catch (parseError) {
+          console.error(`Failed to parse shift data for employee ${employee.id}:`, parseError);
+          shiftData = {};
+        }
+      }
 
       const rowIndex = index + 6; // Starting from row 6 (after title rows and headers)
       const row = worksheet.getRow(rowIndex);
@@ -298,42 +358,74 @@ app.post("/api/export/xlsx", async (req, res) => {
       row.getCell(2).value = employee.name || '';
       row.getCell(3).value = employee.designation || '';
 
-      // Add day columns - only add actual values, skip completely for blank
-      dayColumns.forEach(day => {
-        const status = attendanceData[day.toString()];
-        // Check if it's truly blank/empty
-        const isBlank = !status ||
-                       status === '' ||
-                       status === null ||
-                       status === undefined ||
-                       status.toString().trim() === '' ||
-                       status.toString().toLowerCase() === 'blank';
+      let cellIndex = 4;
 
-        if (isBlank) {
-          row.getCell(4 + dayColumns.indexOf(day)).value = ''; // Push empty string which ExcelJS will treat as empty
-        } else {
-          switch(status) {
-            case 'P': case 'Present': row.getCell(4 + dayColumns.indexOf(day)).value = 'P'; break;
-            case 'A': case 'Absent': row.getCell(4 + dayColumns.indexOf(day)).value = 'A'; break;
-            case 'OT': case 'Overtime': row.getCell(4 + dayColumns.indexOf(day)).value = 'OT'; break;
-            case 'L': case 'Leave': row.getCell(4 + dayColumns.indexOf(day)).value = 'L'; break;
-            case 'H': case 'Holiday': row.getCell(4 + dayColumns.indexOf(day)).value = 'H'; break;
-            default: row.getCell(4 + dayColumns.indexOf(day)).value = status;
+      if (includeShifts) {
+        // Add day columns with shift data (D/N columns)
+        dayColumns.forEach(day => {
+          const status = attendanceData[day.toString()];
+          const shift = shiftData[day.toString()];
+          
+          // Day shift column
+          const dayShiftValue = (status === 'P' || status === 'OT') && shift === 'D' ? 'P' : '';
+          row.getCell(cellIndex).value = dayShiftValue;
+          cellIndex++;
+          
+          // Night shift column  
+          const nightShiftValue = (status === 'P' || status === 'OT') && shift === 'N' ? 'P' : '';
+          row.getCell(cellIndex).value = nightShiftValue;
+          cellIndex++;
+        });
+        
+        // Calculate shift totals
+        const shiftPresentDays = Object.values(shiftData).filter(shift => shift === 'D' || shift === 'N').length;
+        row.getCell(cellIndex).value = shiftPresentDays > 0 ? shiftPresentDays : '';
+        
+      } else {
+        // Add regular day columns
+        dayColumns.forEach(day => {
+          const status = attendanceData[day.toString()];
+          const isBlank = !status ||
+                         status === '' ||
+                         status === null ||
+                         status === undefined ||
+                         status.toString().trim() === '' ||
+                         status.toString().toLowerCase() === 'blank';
+
+          if (isBlank) {
+            row.getCell(cellIndex).value = '';
+          } else {
+            switch(status) {
+              case 'P': case 'Present': row.getCell(cellIndex).value = 'P'; break;
+              case 'A': case 'Absent': row.getCell(cellIndex).value = 'A'; break;
+              case 'OT': case 'Overtime': row.getCell(cellIndex).value = 'OT'; break;
+              case 'L': case 'Leave': row.getCell(cellIndex).value = 'L'; break;
+              case 'H': case 'Holiday': row.getCell(cellIndex).value = 'H'; break;
+              default: row.getCell(cellIndex).value = status;
+            }
           }
-        }
-      });
+          cellIndex++;
+        });
 
-      // Add summary columns - show blank instead of 0 (same as blank button logic)
-      row.getCell(4 + daysInMonth).value = presentDays > 0 ? presentDays : '';
-      row.getCell(4 + daysInMonth + 1).value = otDays > 0 ? otDays : '';
-      row.getCell(4 + daysInMonth + 2).value = attendanceRecord?.remarks || '';
+        // Calculate regular totals
+        const attendanceValues = Object.values(attendanceData);
+        const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
+        const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
+
+        // Add summary columns
+        row.getCell(cellIndex).value = presentDays > 0 ? presentDays : '';
+        cellIndex++;
+        row.getCell(cellIndex).value = otDays > 0 ? otDays : '';
+        cellIndex++;
+        row.getCell(cellIndex).value = attendanceRecord?.remarks || '';
+      }
 
       // Style each cell in the data row
       row.eachCell((cell, colNumber) => {
         // Determine which columns should not be bold (name, designation, remarks)
         const isNameColumn = colNumber === 2;
         const isDesignationColumn = colNumber === 3;
-        const isRemarksColumn = colNumber === headers.length;
+        const isRemarksColumn = !includeShifts && colNumber === headers.length;
         const shouldNotBeBold = isNameColumn || isDesignationColumn || isRemarksColumn;
 
         // Base style for all cells (including empty ones)
@@ -358,42 +450,61 @@ app.post("/api/export/xlsx", async (req, res) => {
           return;
         }
 
-        // Color code attendance columns - only for cells with actual values and when withColors is enabled
-        if (withColors && colNumber >= 4 && colNumber < 4 + daysInMonth) {
+        // Color code attendance/shift columns - only for cells with actual values and when withColors is enabled
+        if (withColors && colNumber >= 4) {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
-            switch(cellValue.toString().trim()) {
-              case 'P':
+            const headerForColumn = headers[colNumber - 1];
+            
+            if (includeShifts) {
+              // Color shift columns
+              if (headerForColumn && headerForColumn.includes('-D')) {
+                // Day shift column
                 cell.style = {
                   ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD5F4E6' } } // Light green (Gruvbox green tinted)
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } } // Light blue for Day
                 };
-                break;
-              case 'A':
+              } else if (headerForColumn && headerForColumn.includes('-N')) {
+                // Night shift column  
                 cell.style = {
                   ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE2E4' } } // Light red (Gruvbox red tinted)
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
                 };
-                break;
-              case 'OT':
-                cell.style = {
-                  ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF7CD' } } // Light yellow (Gruvbox yellow tinted)
-                };
-                break;
-              case 'L':
-                cell.style = {
-                  ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FF' } } // Light blue
-                };
-                break;
-              case 'H':
-                cell.style = {
-                  ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } } // Light gray
-                };
-                break;
-              // If it's any other value but not empty, keep white fill (default from baseStyle)
+              }
+            } else if (colNumber < 4 + daysInMonth) {
+              // Regular attendance columns
+              switch(cellValue.toString().trim()) {
+                case 'P':
+                  cell.style = {
+                    ...baseStyle,
+                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD5F4E6' } } // Light green
+                  };
+                  break;
+                case 'A':
+                  cell.style = {
+                    ...baseStyle,
+                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE2E4' } } // Light red
+                  };
+                  break;
+                case 'OT':
+                  cell.style = {
+                    ...baseStyle,
+                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF7CD' } } // Light yellow
+                  };
+                  break;
+                case 'L':
+                  cell.style = {
+                    ...baseStyle,
+                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FF' } } // Light blue
+                  };
+                  break;
+                case 'H':
+                  cell.style = {
+                    ...baseStyle,
+                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } } // Light gray
+                  };
+                  break;
+              }
             }
           }
         }
@@ -401,15 +512,28 @@ app.post("/api/export/xlsx", async (req, res) => {
     });
 
     // Set column widths
-    worksheet.columns = [
+    let columnWidths = [
       { width: 8 },   // SL.NO
       { width: 25 },  // NAME
       { width: 18 },  // DESIGNATION
-      ...dayColumns.map(() => ({ width: 4 })), // Day columns
-      { width: 12 },  // T/ON DUTY
-      { width: 10 },  // OT DAYS
-      { width: 30 }   // REMARKS
     ];
+    
+    if (includeShifts) {
+      // Add D/N columns (2 per day)
+      dayColumns.forEach(() => {
+        columnWidths.push({ width: 3 }); // D column
+        columnWidths.push({ width: 3 }); // N column
+      });
+      columnWidths.push({ width: 12 }); // T/ON DUTY
+    } else {
+      // Add regular day columns
+      columnWidths.push(...dayColumns.map(() => ({ width: 4 })));
+      columnWidths.push({ width: 12 }); // T/ON DUTY
+      columnWidths.push({ width: 10 }); // OT DAYS
+      columnWidths.push({ width: 30 }); // REMARKS
+    }
+    
+    worksheet.columns = columnWidths;
 
     // Generate buffer
     const buffer = await workbook.xlsx.writeBuffer();

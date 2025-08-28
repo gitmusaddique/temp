@@ -31,6 +31,7 @@ export default function ExportModal({
     month: defaultMonth,
     year: defaultYear,
     withColors: true,
+    includeShifts: false,
   });
   const { toast } = useToast();
 
@@ -63,7 +64,8 @@ export default function ExportModal({
             selectedEmployees: showAllEmployees ? undefined : Array.from(selectedEmployees),
             companyName: appSettings?.companyName || 'Siddik',
             rigName: appSettings?.rigName || 'ROM-100-II',
-            withColors: exportData.withColors
+            withColors: exportData.withColors,
+            includeShifts: exportData.includeShifts
           }),
       });
 
@@ -213,22 +215,41 @@ export default function ExportModal({
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2">Export Options</Label>
             <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="withColors"
-                  checked={exportData.withColors}
-                  onCheckedChange={(checked) => 
-                    setExportData({ ...exportData, withColors: !!checked })
-                  }
-                  data-testid="checkbox-with-colors"
-                />
-                <Label htmlFor="withColors" className="text-sm font-medium">
-                  Export with colors
-                </Label>
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="withColors"
+                    checked={exportData.withColors}
+                    onCheckedChange={(checked) => 
+                      setExportData({ ...exportData, withColors: !!checked })
+                    }
+                    data-testid="checkbox-with-colors"
+                  />
+                  <Label htmlFor="withColors" className="text-sm font-medium">
+                    Export with colors
+                  </Label>
+                </div>
+                <p className="text-xs text-gray-600 ml-6">
+                  When enabled, attendance cells will have background colors (green for Present, red for Absent, yellow for Overtime)
+                </p>
+                
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="includeShifts"
+                    checked={exportData.includeShifts}
+                    onCheckedChange={(checked) => 
+                      setExportData({ ...exportData, includeShifts: !!checked })
+                    }
+                    data-testid="checkbox-include-shifts"
+                  />
+                  <Label htmlFor="includeShifts" className="text-sm font-medium">
+                    Include shift data (Day/Night)
+                  </Label>
+                </div>
+                <p className="text-xs text-gray-600 ml-6">
+                  When enabled, export will include Day/Night shift columns below each date
+                </p>
               </div>
-              <p className="text-xs text-gray-600 mt-1 ml-6">
-                When enabled, attendance cells will have background colors (green for Present, red for Absent, yellow for Overtime)
-              </p>
             </div>
           </div>
 

@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Download, X, Bell, Settings, Building } from "lucide-react";
 import { Link } from "wouter";
-import type { Employee, AttendanceRecord } from "@shared/schema";
+import type { Employee, AttendanceRecord, ShiftAttendanceRecord } from "@shared/schema";
 import ExportModal from "@/components/export-modal";
 import SettingsModal from "@/components/settings-modal";
 import { apiRequest } from "@/lib/queryClient";
@@ -47,6 +47,8 @@ export default function AttendanceView() {
   const [bulkAction, setBulkAction] = useState<"fill" | "clear" | null>(null);
   const [hoveredColumn, setHoveredColumn] = useState<number | null>(null);
   const [selectedRemarksEmployee, setSelectedRemarksEmployee] = useState<{id: string, name: string} | null>(null);
+  const [showShiftTable, setShowShiftTable] = useState(false);
+  const [selectedShiftCell, setSelectedShiftCell] = useState<{employeeId: string, day: number, currentShift: string} | null>(null);
 
   // Load settings from database
   const { data: settings } = useQuery({
@@ -67,6 +69,10 @@ export default function AttendanceView() {
 
   const { data: attendanceRecords = [] } = useQuery<AttendanceRecord[]>({
     queryKey: ["/api/attendance", selectedMonth, selectedYear],
+  });
+
+  const { data: shiftAttendanceRecords = [] } = useQuery<ShiftAttendanceRecord[]>({
+    queryKey: ["/api/shift-attendance", selectedMonth, selectedYear],
   });
 
   const monthNames = [
@@ -187,6 +193,25 @@ export default function AttendanceView() {
     return record?.remarks || "";
   };
 
+  // Get shift attendance for a specific employee and day
+  const getShiftAttendance = (employeeId: string, day: number): string => {
+    const record = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+    if (!record || !record.shiftData) return "";
+
+    try {
+      const data = JSON.parse(record.shiftData) as Record<string, string>;
+      return data[day.toString()] || "";
+    } catch {
+      return "";
+    }
+  };
+
+  // Check if day has P or OT status (required for shift entry)
+  const canEnterShift = (employeeId: string, day: number): boolean => {
+    const status = getAttendanceStatus(employeeId, day);
+    return status === "P" || status === "OT";
+  };
+
   // Local state for remarks to avoid constant API calls
   const [remarksState, setRemarksState] = useState<Record<string, string>>({});
 
@@ -251,6 +276,125 @@ export default function AttendanceView() {
     }, 1000),
     [updateRemarksMutation]
   );
+
+  // Update shift attendance mutation
+  const updateShiftAttendanceMutation = useMutation({
+    mutationFn: async ({ employeeId, day, shift }: { employeeId: string, day: number, shift: string }) => {
+      const existingRecord = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+      let shiftData: Record<string, string> = {};
+
+      if (existingRecord && existingRecord.shiftData) {
+        try {
+          shiftData = JSON.parse(existingRecord.shiftData) as Record<string, string>;
+        } catch {
+          shiftData = {};
+        }
+      }
+
+      if (shift === "") {
+        delete shiftData[day.toString()];
+      } else {
+        shiftData[day.toString()] = shift;
+      }
+
+      const response = await fetch('/api/shift-attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          employeeId,
+          month: parseInt(selectedMonth),
+          year: parseInt(selectedYear),
+          shiftData: JSON.stringify(shiftData),
+          totalOnDuty: Object.values(shiftData).filter(s => s === "P").length
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update shift attendance');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
+      toast({
+        title: "Success",
+        description: "Shift attendance updated successfully"
+      });
+      setSelectedShiftCell(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update shift attendance",
+        variant: "destructive"
+      });
+    }
+  });
+
+  // Bulk update shift attendance mutation
+  const bulkUpdateShiftAttendanceMutation = useMutation({
+    mutationFn: async ({ employeeId, startDay, endDay, shift }: { employeeId: string, startDay: number, endDay: number, shift: string }) => {
+      const existingRecord = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+      let shiftData: Record<string, string> = {};
+
+      if (existingRecord && existingRecord.shiftData) {
+        try {
+          shiftData = JSON.parse(existingRecord.shiftData) as Record<string, string>;
+        } catch {
+          shiftData = {};
+        }
+      }
+
+      // Update all days in the range (only if main attendance is P or OT)
+      for (let day = startDay; day <= endDay; day++) {
+        const canEnter = canEnterShift(employeeId, day);
+        if (canEnter) {
+          if (shift === "") {
+            delete shiftData[day.toString()];
+          } else {
+            shiftData[day.toString()] = shift;
+          }
+        }
+      }
+
+      const response = await fetch('/api/shift-attendance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          employeeId,
+          month: parseInt(selectedMonth),
+          year: parseInt(selectedYear),
+          shiftData: JSON.stringify(shiftData),
+          totalOnDuty: Object.values(shiftData).filter(s => s === "P").length
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update shift attendance');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
+      toast({
+        title: "Success",
+        description: "Shift attendance updated successfully"
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update shift attendance",
+        variant: "destructive"
+      });
+    }
+  });
 
   // Bulk update attendance mutation
   const bulkUpdateAttendanceMutation = useMutation({
@@ -443,6 +587,34 @@ export default function AttendanceView() {
     });
   };
 
+  // Handle bulk shift fill
+  const handleBulkShiftFill = (shift: string) => {
+    if (!selectedRowId || !startDate || !endDate) {
+      toast({
+        title: "Error",
+        description: "Please select a row and valid date range",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!validateDateRange(startDate, endDate)) {
+      toast({
+        title: "Invalid Range",
+        description: `Please enter valid dates between 1 and ${daysInMonth}. Start date must be less than or equal to end date.`,
+        variant: "destructive"
+      });
+      return;
+    }
+
+    bulkUpdateShiftAttendanceMutation.mutate({
+      employeeId: selectedRowId,
+      startDay: parseInt(startDate),
+      endDay: parseInt(endDate),
+      shift
+    });
+  };
+
   // Column highlighting handlers
   const handleColumnMouseEnter = (dayIndex: number) => {
     setHoveredColumn(dayIndex);
@@ -549,6 +721,15 @@ export default function AttendanceView() {
                   className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-4 py-2"
                 >
                   {showAllEmployees ? "Select Employees" : `Selected (${selectedEmployees.size})`}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  onClick={() => setShowShiftTable(!showShiftTable)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-600 hover:border-purple-700 font-medium px-4 py-2"
+                  data-testid="button-toggle-shift-table"
+                >
+                  {showShiftTable ? "Hide Shift Table" : "Show Shift Table"}
                 </Button>
 
                 <Button 
@@ -721,6 +902,17 @@ export default function AttendanceView() {
           .attendance-table td.column-highlighted {
             background-color: #dbeafe !important;
             position: relative;
+          }
+          .attendance-table th.sticky {
+            position: sticky;
+            z-index: 10;
+          }
+          .attendance-table td.sticky {
+            position: sticky;
+            z-index: 5;
+          }
+          .attendance-table tbody tr:hover td.sticky {
+            background-color: #f8fafc !important;
           }
         `}</style>
         <Card className="overflow-hidden">
@@ -905,6 +1097,142 @@ export default function AttendanceView() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Shift Attendance Table */}
+        {showShiftTable && (
+          <Card className="overflow-hidden mt-8">
+            <CardHeader className="text-center bg-gray-50 border-b">
+              <CardTitle className="text-lg font-medium">
+                {appSettings?.companyName || "Loading..."} - Shift Attendance
+              </CardTitle>
+              <p className="text-sm text-gray-600">Day & Night Shifts</p>
+              <p className="text-sm font-medium">
+                {appSettings?.rigName || "Loading..."} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                MONTH:-{monthNames[parseInt(selectedMonth) - 1].toUpperCase()}. {selectedYear}
+              </p>
+            </CardHeader>
+
+            <CardContent className="p-0">
+              <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
+                <table className="min-w-full attendance-table">
+                  <thead className="bg-gray-50 border-b sticky top-0 z-10">
+                    <tr>
+                      <th className="px-2 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r sticky left-0 bg-gray-50 z-20">
+                        SL.NO
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r sticky left-12 bg-gray-50 z-20 min-w-[200px]">
+                        NAME
+                      </th>
+                      <th className="px-4 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r sticky left-60 bg-gray-50 z-20 min-w-[150px]">
+                        DESIGNATION
+                      </th>
+                      {dayColumns.map((day, dayIndex) => (
+                        <th key={day} className="border-r">
+                          <div className="text-center">
+                            <div className="px-1 py-1 text-xs font-extrabold text-gray-700 border-b">
+                              {day}
+                            </div>
+                            <div className="grid grid-cols-2">
+                              <div className="px-1 py-1 text-xs font-extrabold text-gray-700 border-r bg-blue-50">
+                                D
+                              </div>
+                              <div className="px-1 py-1 text-xs font-extrabold text-gray-700 bg-indigo-50">
+                                N
+                              </div>
+                            </div>
+                          </div>
+                        </th>
+                      ))}
+                      <th className="px-2 py-2 text-center text-xs font-extrabold text-gray-700">
+                        T/ON DUTY
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {displayEmployees.length === 0 ? (
+                      <tr>
+                        <td colSpan={dayColumns.length + 4} className="text-center py-8 text-gray-500">
+                          {employees.length === 0 ? "No employees found. Add employees to view shift attendance." : 
+                           filteredEmployees.length === 0 ? "No employees match the selected designation." :
+                           showAllEmployees ? "No active employees found for the selected designation." : 
+                           "No employees selected. Use the employee selection panel above to select employees."}
+                        </td>
+                      </tr>
+                    ) : (
+                      displayEmployees.map((employee, index) => {
+                        const totalShiftPresent = dayColumns.filter(day => getShiftAttendance(employee.id, day) === "P").length;
+
+                        return (
+                          <tr key={employee.id} className="hover:bg-gray-50">
+                            <td className="px-2 py-2 text-sm border-r sticky left-0 bg-white z-10">
+                              {index + 1}
+                            </td>
+                            <td className="px-4 py-2 text-sm font-medium border-r sticky left-12 bg-white z-10 min-w-[200px]">
+                              {employee.name}
+                            </td>
+                            <td className="px-4 py-2 text-sm border-r sticky left-60 bg-white z-10 min-w-[150px]">
+                              {employee.designation || "-"}
+                            </td>
+                            {dayColumns.map((day) => {
+                              const canEnter = canEnterShift(employee.id, day);
+                              const currentShift = getShiftAttendance(employee.id, day);
+                              
+                              return (
+                                <td key={day} className="border-r">
+                                  <div className="grid grid-cols-2 h-full">
+                                    <div 
+                                      className={`px-1 py-2 text-center text-xs border-r cursor-pointer ${
+                                        !canEnter ? "bg-gray-100 cursor-not-allowed" :
+                                        currentShift === "D" ? "bg-blue-100 text-blue-800" : "hover:bg-blue-50"
+                                      }`}
+                                      onClick={() => {
+                                        if (canEnter) {
+                                          setSelectedShiftCell({ 
+                                            employeeId: employee.id, 
+                                            day, 
+                                            currentShift: currentShift === "D" ? "D" : "" 
+                                          });
+                                        }
+                                      }}
+                                      title={!canEnter ? "Employee must have P or OT status to enter shift" : "Click to toggle Day shift"}
+                                    >
+                                      {currentShift === "D" ? "P" : ""}
+                                    </div>
+                                    <div 
+                                      className={`px-1 py-2 text-center text-xs cursor-pointer ${
+                                        !canEnter ? "bg-gray-100 cursor-not-allowed" :
+                                        currentShift === "N" ? "bg-indigo-100 text-indigo-800" : "hover:bg-indigo-50"
+                                      }`}
+                                      onClick={() => {
+                                        if (canEnter) {
+                                          setSelectedShiftCell({ 
+                                            employeeId: employee.id, 
+                                            day, 
+                                            currentShift: currentShift === "N" ? "N" : "" 
+                                          });
+                                        }
+                                      }}
+                                      title={!canEnter ? "Employee must have P or OT status to enter shift" : "Click to toggle Night shift"}
+                                    >
+                                      {currentShift === "N" ? "P" : ""}
+                                    </div>
+                                  </div>
+                                </td>
+                              );
+                            })}
+                            <td className="px-2 py-2 text-center text-sm font-medium">
+                              {totalShiftPresent}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       <ExportModal
@@ -915,6 +1243,86 @@ export default function AttendanceView() {
         selectedEmployees={selectedEmployees}
         showAllEmployees={showAllEmployees}
       />
+
+      {/* Shift Selection Dialog */}
+      {selectedShiftCell && (
+        <Dialog open={true} onOpenChange={() => setSelectedShiftCell(null)}>
+          <DialogContent className="w-full max-w-sm" aria-describedby="shift-selection-description">
+            <DialogHeader>
+              <DialogTitle>
+                Day {selectedShiftCell.day} Shift Selection
+              </DialogTitle>
+            </DialogHeader>
+
+            <div id="shift-selection-description" className="sr-only">
+              Select shift (Day or Night) for the selected day
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                Select shift:
+              </p>
+
+              <div className="grid grid-cols-3 gap-3">
+                <Button
+                  variant="outline"
+                  className={`justify-start border-2 transition-all duration-200 ${
+                    selectedShiftCell.currentShift === "" 
+                      ? "bg-slate-100 text-slate-900 border-slate-700 shadow-sm" 
+                      : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+                  }`}
+                  onClick={() => updateShiftAttendanceMutation.mutate({
+                    employeeId: selectedShiftCell.employeeId,
+                    day: selectedShiftCell.day,
+                    shift: ""
+                  })}
+                  disabled={updateShiftAttendanceMutation.isPending}
+                >
+                  Clear
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className={`justify-start border-2 transition-all duration-200 ${
+                    selectedShiftCell.currentShift === "D" 
+                      ? "bg-blue-100 text-blue-800 border-blue-600 shadow-sm" 
+                      : "bg-blue-50 text-blue-700 border-blue-400 hover:bg-blue-100 hover:border-blue-500"
+                  }`}
+                  onClick={() => updateShiftAttendanceMutation.mutate({
+                    employeeId: selectedShiftCell.employeeId,
+                    day: selectedShiftCell.day,
+                    shift: "D"
+                  })}
+                  disabled={updateShiftAttendanceMutation.isPending}
+                >
+                  Day (D)
+                </Button>
+
+                <Button
+                  variant="outline"
+                  className={`justify-start border-2 transition-all duration-200 ${
+                    selectedShiftCell.currentShift === "N" 
+                      ? "bg-indigo-100 text-indigo-800 border-indigo-600 shadow-sm" 
+                      : "bg-indigo-50 text-indigo-700 border-indigo-400 hover:bg-indigo-100 hover:border-indigo-500"
+                  }`}
+                  onClick={() => updateShiftAttendanceMutation.mutate({
+                    employeeId: selectedShiftCell.employeeId,
+                    day: selectedShiftCell.day,
+                    shift: "N"
+                  })}
+                  disabled={updateShiftAttendanceMutation.isPending}
+                >
+                  Night (N)
+                </Button>
+              </div>
+
+              {updateShiftAttendanceMutation.isPending && (
+                <p className="text-sm text-gray-500 text-center">Updating shift...</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
 
       {/* Attendance Status Dialog */}
       {selectedCell && (
@@ -1201,6 +1609,46 @@ export default function AttendanceView() {
                   Overtime (OT)
                 </Button>
               </div>
+
+              {showShiftTable && (
+                <>
+                  <div className="border-t pt-4">
+                    <p className="text-sm font-medium text-gray-700 mb-3">Fill Shift Range With:</p>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <Button
+                        onClick={() => handleBulkShiftFill("")}
+                        disabled={!selectedRowId || bulkUpdateShiftAttendanceMutation.isPending}
+                        variant="outline"
+                        className="border-2 border-slate-400 text-slate-600 hover:bg-slate-50 hover:border-slate-500"
+                        data-testid="button-fill-shift-blank"
+                      >
+                        Clear Shift
+                      </Button>
+                      
+                      <Button
+                        onClick={() => handleBulkShiftFill("D")}
+                        disabled={!selectedRowId || bulkUpdateShiftAttendanceMutation.isPending}
+                        variant="outline"
+                        className="border-2 border-blue-400 text-blue-700 hover:bg-blue-50 hover:border-blue-500"
+                        data-testid="button-fill-day-shift"
+                      >
+                        Day (D)
+                      </Button>
+                      
+                      <Button
+                        onClick={() => handleBulkShiftFill("N")}
+                        disabled={!selectedRowId || bulkUpdateShiftAttendanceMutation.isPending}
+                        variant="outline"
+                        className="border-2 border-indigo-400 text-indigo-700 hover:bg-indigo-50 hover:border-indigo-500"
+                        data-testid="button-fill-night-shift"
+                      >
+                        Night (N)
+                      </Button>
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
 
             {bulkUpdateAttendanceMutation.isPending && (
