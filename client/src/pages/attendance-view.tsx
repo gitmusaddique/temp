@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Download, X, Bell, Settings, Building } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useParams } from "wouter";
 import type { Employee, AttendanceRecord, ShiftAttendanceRecord } from "@shared/schema";
 import ExportModal from "@/components/export-modal";
 import SettingsModal from "@/components/settings-modal";
@@ -22,6 +22,7 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
 }
 
 export default function AttendanceView() {
+  const { workspaceId } = useParams();
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return now.getMonth() + 1 <= 12 ? (now.getMonth() + 1).toString() : "12";
@@ -52,9 +53,28 @@ export default function AttendanceView() {
   const [selectedBulkShift, setSelectedBulkShift] = useState<string>("D");
   const [selectedIndividualShift, setSelectedIndividualShift] = useState<string>("D");
 
+  // Fetch workspace info
+  const { data: workspaces = [] } = useQuery({
+    queryKey: ['workspaces'],
+    queryFn: async () => {
+      const response = await fetch('/api/workspaces');
+      if (!response.ok) {
+        throw new Error('Failed to fetch workspaces');
+      }
+      return response.json();
+    },
+  });
+
+  const currentWorkspace = workspaces.find((w: any) => w.id === workspaceId);
+
+  if (!workspaceId) {
+    return <div>Invalid workspace</div>;
+  }
+
   // Load settings from database
   const { data: settings } = useQuery({
-    queryKey: ["/api/settings"],
+    queryKey: ["/api/settings", workspaceId],
+    enabled: !!workspaceId,
   });
 
   useEffect(() => {
@@ -65,17 +85,58 @@ export default function AttendanceView() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const { data: employees = [] } = useQuery<Employee[]>({
-    queryKey: ["/api/employees"],
+  // Fetch employees
+  const { data: employees = [], isLoading: employeesLoading } = useQuery({
+    queryKey: ['employees', workspaceId],
+    queryFn: async () => {
+      if (!workspaceId) return [];
+      const response = await fetch(`/api/employees/${workspaceId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch employees');
+      }
+      return response.json();
+    },
+    enabled: !!workspaceId,
   });
 
-  const { data: attendanceRecords = [] } = useQuery<AttendanceRecord[]>({
-    queryKey: ["/api/attendance", selectedMonth, selectedYear],
+  // Fetch attendance records
+  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
+    queryKey: ['attendance', workspaceId, selectedMonth, selectedYear],
+    queryFn: async () => {
+      if (!workspaceId) return [];
+      const response = await fetch(`/api/attendance/${workspaceId}/${selectedMonth}/${selectedYear}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch attendance records');
+      }
+      return response.json();
+    },
+    enabled: !!workspaceId,
   });
 
-  const { data: shiftAttendanceRecords = [] } = useQuery<ShiftAttendanceRecord[]>({
-    queryKey: ["/api/shift-attendance", selectedMonth, selectedYear],
+  // Fetch shift attendance records
+  const { data: shiftAttendanceRecords = [], isLoading: shiftLoading } = useQuery({
+    queryKey: ['shift-attendance', workspaceId, selectedMonth, selectedYear],
+    queryFn: async () => {
+      if (!workspaceId) return [];
+      const response = await fetch(`/api/shift-attendance/${workspaceId}/${selectedMonth}/${selectedYear}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch shift attendance records');
+      }
+      return response.json();
+    },
+    enabled: !!workspaceId,
   });
+
+  if (employeesLoading || attendanceLoading || shiftLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold mb-2">Loading attendance data...</h2>
+          <p className="text-gray-600">Please wait while we fetch the latest information.</p>
+        </div>
+      </div>
+    );
+  }
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -247,7 +308,7 @@ export default function AttendanceView() {
         }
       }
 
-      const response = await apiRequest('POST', '/api/attendance', {
+      const response = await apiRequest('POST', `/api/attendance/${workspaceId}`, {
         employeeId,
         month: parseInt(selectedMonth),
         year: parseInt(selectedYear),
@@ -260,7 +321,7 @@ export default function AttendanceView() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance", workspaceId, selectedMonth, selectedYear] });
     },
     onError: (error: any) => {
       toast({
@@ -299,7 +360,7 @@ export default function AttendanceView() {
         shiftData[day.toString()] = shift;
       }
 
-      const response = await fetch('/api/shift-attendance', {
+      const response = await fetch(`/api/shift-attendance/${workspaceId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -320,7 +381,7 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Shift attendance updated successfully"
@@ -362,7 +423,7 @@ export default function AttendanceView() {
         }
       }
 
-      const response = await fetch('/api/shift-attendance', {
+      const response = await fetch(`/api/shift-attendance/${workspaceId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -383,7 +444,7 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Shift attendance updated successfully"
@@ -421,7 +482,7 @@ export default function AttendanceView() {
         }
       }
 
-      const response = await fetch('/api/attendance', {
+      const response = await fetch(`/api/attendance/${workspaceId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -456,7 +517,7 @@ export default function AttendanceView() {
           shiftData[day.toString()] = shift;
         }
 
-        await fetch('/api/shift-attendance', {
+        await fetch(`/api/shift-attendance/${workspaceId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -485,7 +546,7 @@ export default function AttendanceView() {
             delete shiftData[day.toString()];
           }
 
-          await fetch('/api/shift-attendance', {
+          await fetch(`/api/shift-attendance/${workspaceId}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -504,8 +565,8 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance", workspaceId, selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Attendance and shift updated successfully"
@@ -545,7 +606,7 @@ export default function AttendanceView() {
         attendanceData[day.toString()] = status;
       }
 
-      const response = await fetch('/api/attendance', {
+      const response = await fetch(`/api/attendance/${workspaceId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -577,7 +638,7 @@ export default function AttendanceView() {
 
         shiftData[day.toString()] = shift;
 
-        await fetch('/api/shift-attendance', {
+        await fetch(`/api/shift-attendance/${workspaceId}`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -603,7 +664,7 @@ export default function AttendanceView() {
 
           delete shiftData[day.toString()];
 
-          await fetch('/api/shift-attendance', {
+          await fetch(`/api/shift-attendance/${workspaceId}`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -622,8 +683,8 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance", workspaceId, selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Attendance and shift updated successfully"
@@ -783,49 +844,44 @@ export default function AttendanceView() {
   };
 
   return (
-    <div className="min-h-screen bg-surface">
-      {/* Header */}
-      <header className="bg-white shadow-material sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center space-x-3">
-              <Link href="/">
-                <Button variant="ghost" size="icon" data-testid="button-back">
-                  <ArrowLeft className="w-5 h-5" />
-                </Button>
-              </Link>
-              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-                <Building className="w-4 h-4 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
-                  {appSettings?.companyName || "Loading..."}
-                </h1>
-                <p className="text-xs text-gray-600">Attendance Management</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                data-testid="button-notifications"
-              >
-                <Bell className="w-5 h-5 text-gray-600" />
+    <div className="min-h-screen bg-gray-50 p-4">
+      <div className="max-w-full mx-auto">
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <Link href="/">
+              <Button variant="outline" size="sm">
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Home
               </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="rounded-full"
-                onClick={() => setShowSettingsModal(true)}
-                data-testid="button-settings"
-              >
-                <Settings className="w-5 h-5 text-gray-600" />
-              </Button>
+            </Link>
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">
+                Attendance Management - {currentWorkspace?.name || workspaceId}
+              </h1>
+              <p className="text-gray-600">Track and manage employee attendance</p>
             </div>
           </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              data-testid="button-notifications"
+            >
+              <Bell className="w-5 h-5 text-gray-600" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-full"
+              onClick={() => setShowSettingsModal(true)}
+              data-testid="button-settings"
+            >
+              <Settings className="w-5 h-5 text-gray-600" />
+            </Button>
+          </div>
         </div>
-      </header>
+      </div>
 
       {/* Sub Header */}
       <div className="bg-gray-50 border-b">
@@ -1074,7 +1130,7 @@ export default function AttendanceView() {
             background-color: #f8fafc !important;
           }
         `}</style>
-        
+
         {tableView === "attendance" ? (
           <Card className="overflow-hidden">
             <CardHeader className="text-center bg-gray-50 border-b">
@@ -1293,7 +1349,7 @@ export default function AttendanceView() {
                   </Select>
                 </div>
               </div>
-              
+
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="min-w-full attendance-table">
                   <thead className="bg-gray-50 border-b sticky top-0 z-10">

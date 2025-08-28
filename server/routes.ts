@@ -9,10 +9,21 @@ import { z } from "zod";
 import ExcelJS from 'exceljs';
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Employee routes
-  app.get("/api/employees", async (req, res) => {
+  // Workspace routes
+  app.get("/api/workspaces", async (req, res) => {
     try {
-      const employees = await storage.getAllEmployees();
+      const workspaces = await storage.getAllWorkspaces();
+      res.json(workspaces);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch workspaces" });
+    }
+  });
+
+  // Employee routes
+  app.get("/api/employees/:workspaceId", async (req, res) => {
+    try {
+      const { workspaceId } = req.params;
+      const employees = await storage.getAllEmployees(workspaceId);
       res.json(employees);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch employees" });
@@ -31,10 +42,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/employees", async (req, res) => {
+  app.post("/api/employees/:workspaceId", async (req, res) => {
     try {
+      const { workspaceId } = req.params;
       const validatedData = insertEmployeeSchema.parse(req.body);
-      const employee = await storage.createEmployee(validatedData);
+      const employee = await storage.createEmployee(workspaceId, validatedData);
       res.status(201).json(employee);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -96,8 +108,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Attendance routes
-  app.get("/api/attendance/:month/:year", async (req, res) => {
+  app.get("/api/attendance/:workspaceId/:month/:year", async (req, res) => {
     try {
+      const { workspaceId } = req.params;
       const month = parseInt(req.params.month);
       const year = parseInt(req.params.year);
 
@@ -105,7 +118,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid month or year" });
       }
 
-      const records = await storage.getAttendanceForMonth(month, year);
+      const records = await storage.getAttendanceForMonth(workspaceId, month, year);
       res.json(records);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch attendance records" });
@@ -126,8 +139,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Shift attendance routes
-  app.get("/api/shift-attendance/:month/:year", async (req, res) => {
+  app.get("/api/shift-attendance/:workspaceId/:month/:year", async (req, res) => {
     try {
+      const { workspaceId } = req.params;
       const month = parseInt(req.params.month);
       const year = parseInt(req.params.year);
 
@@ -135,7 +149,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Invalid month or year" });
       }
 
-      const records = await storage.getShiftAttendanceForMonth(month, year);
+      const records = await storage.getShiftAttendanceForMonth(workspaceId, month, year);
       res.json(records);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch shift attendance records" });

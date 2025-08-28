@@ -10,12 +10,23 @@ import { apiRequest } from "@/lib/queryClient";
 import { DESIGNATION_OPTIONS } from "@shared/schema";
 import { X } from "lucide-react";
 
+interface Employee {
+  id: string;
+  name: string;
+  designation: string;
+  designationOrder: number;
+  status: "Active" | "Inactive";
+  workspaceId: string;
+}
+
 interface CreateEmployeeModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onEmployeeCreated: (employee: Employee) => void;
+  workspaceId: string;
 }
 
-export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeModalProps) {
+export function CreateEmployeeModal({ isOpen, onClose, onEmployeeCreated, workspaceId }: CreateEmployeeModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     designation: "",
@@ -41,14 +52,31 @@ export default function CreateEmployeeModal({ isOpen, onClose }: CreateEmployeeM
 
   const createEmployeeMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      await apiRequest("POST", "/api/employees", data);
+      const employeeData = { ...data, workspaceId };
+      const response = await fetch(`/api/employees/${workspaceId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(employeeData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to create employee");
+      }
+
+      const createdEmployee: Employee = await response.json();
+      return createdEmployee;
     },
-    onSuccess: () => {
+    onSuccess: (newEmployee) => {
       queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employees", workspaceId] });
       toast({
         title: "Success",
         description: "Employee created successfully",
       });
+      onEmployeeCreated(newEmployee);
       handleClose();
     },
     onError: (error: any) => {

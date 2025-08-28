@@ -4,19 +4,23 @@ import Database from 'better-sqlite3';
 import path from 'path';
 
 export interface IStorage {
+  // Workspace operations
+  getAllWorkspaces(): Promise<{id: string, name: string}[]>;
+  getWorkspace(id: string): Promise<{id: string, name: string} | undefined>;
+  
   // Employee operations
   getEmployee(id: string): Promise<Employee | undefined>;
-  getEmployeeByEmployeeId(employeeId: string): Promise<Employee | undefined>;
-  getAllEmployees(): Promise<Employee[]>;
-  createEmployee(employee: InsertEmployee): Promise<Employee>;
+  getEmployeeByEmployeeId(workspaceId: string, employeeId: string): Promise<Employee | undefined>;
+  getAllEmployees(workspaceId: string): Promise<Employee[]>;
+  createEmployee(workspaceId: string, employee: InsertEmployee): Promise<Employee>;
   updateEmployee(id: string, employee: Partial<InsertEmployee>): Promise<Employee | undefined>;
   deleteEmployee(id: string): Promise<boolean>;
   // Attendance operations
   getAttendanceRecord(employeeId: string, month: number, year: number): Promise<AttendanceRecord | undefined>;
   createOrUpdateAttendance(attendance: InsertAttendance): Promise<AttendanceRecord>;
-  getAttendanceForMonth(month: number, year: number): Promise<AttendanceRecord[]>;
+  getAttendanceForMonth(workspaceId: string, month: number, year: number): Promise<AttendanceRecord[]>;
   // Shift Attendance operations
-  getShiftAttendanceForMonth(month: number, year: number): Promise<any[]>; // Use 'any' for now, define a specific type later
+  getShiftAttendanceForMonth(workspaceId: string, month: number, year: number): Promise<any[]>; // Use 'any' for now, define a specific type later
   createOrUpdateShiftAttendance(attendance: any): Promise<any>; // Use 'any' for now, define a specific type later
   // Settings operations
   getSettings(): Promise<{ companyName: string; rigName: string }>;
@@ -48,17 +52,28 @@ export class SqliteStorage implements IStorage {
 
   private initializeTables() {
     this.db.exec(`
+      CREATE TABLE IF NOT EXISTS workspaces (
+        id TEXT PRIMARY KEY,
+        name TEXT UNIQUE NOT NULL,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      );
+
       CREATE TABLE IF NOT EXISTS employees (
         id TEXT PRIMARY KEY,
-        employee_id TEXT UNIQUE NOT NULL,
+        workspace_id TEXT NOT NULL,
+        employee_id TEXT NOT NULL,
         name TEXT NOT NULL,
         designation TEXT,
         designation_order INTEGER DEFAULT 999,
         department TEXT,
         status TEXT DEFAULT 'Active',
-        serial_number INTEGER UNIQUE NOT NULL,
+        serial_number INTEGER NOT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (workspace_id) REFERENCES workspaces (id) ON DELETE CASCADE,
+        UNIQUE(workspace_id, employee_id),
+        UNIQUE(workspace_id, serial_number)
       );
 
       CREATE TABLE IF NOT EXISTS attendance_records (
@@ -99,7 +114,8 @@ export class SqliteStorage implements IStorage {
 
       CREATE INDEX IF NOT EXISTS idx_attendance_month_year ON attendance_records (month, year);
       CREATE INDEX IF NOT EXISTS idx_attendance_employee ON attendance_records (employee_id);
-      CREATE INDEX IF NOT EXISTS idx_employee_serial ON employees (serial_number);
+      CREATE INDEX IF NOT EXISTS idx_employee_workspace_serial ON employees (workspace_id, serial_number);
+      CREATE INDEX IF NOT EXISTS idx_employee_workspace ON employees (workspace_id);
       CREATE INDEX IF NOT EXISTS idx_shift_attendance_month_year ON shift_attendance_records (month, year);
       CREATE INDEX IF NOT EXISTS idx_shift_attendance_employee ON shift_attendance_records (employee_id);
     `);
@@ -110,6 +126,14 @@ export class SqliteStorage implements IStorage {
       VALUES ('default', 'Company Name', 'ROM-100-II')
     `);
     defaultSettings.run();
+
+    // Initialize default workspaces
+    const initWorkspaces = this.db.prepare(`
+      INSERT OR IGNORE INTO workspaces (id, name)
+      VALUES (?, ?)
+    `);
+    initWorkspaces.run('domestic', 'Domestic');
+    initWorkspaces.run('ongc', 'ONGC');
 
     // Migration: Update existing "Siddik" records to "Company Name"
     const migrateSiddik = this.db.prepare(`
@@ -126,6 +150,24 @@ export class SqliteStorage implements IStorage {
     try {
       this.db.exec(`ALTER TABLE employees ADD COLUMN designation_order INTEGER DEFAULT 999;`);
       console.log('Added designation_order column to existing employees table');
+    } catch (error: any) {
+      // Column already exists, ignore the error
+      if (!error.message.includes('duplicate column name')) {
+        console.error('Migration error:', error);
+      }
+    }
+
+    // Migration: Add workspace_id column to employees if it doesn't exist
+    try {
+      this.db.exec(`ALTER TABLE employees ADD COLUMN workspace_id TEXT DEFAULT 'domestic';`);
+      console.log('Added workspace_id column to existing employees table');
+      
+      // Update existing employees to belong to domestic workspace
+      const updateExistingEmployees = this.db.prepare(`
+        UPDATE employees SET workspace_id = 'domestic' WHERE workspace_id IS NULL
+      `);
+      const result = updateExistingEmployees.run();
+      console.log(`Migrated ${result.changes} existing employees to domestic workspace`);
     } catch (error: any) {
       // Column already exists, ignore the error
       if (!error.message.includes('duplicate column name')) {
@@ -165,14 +207,18 @@ export class SqliteStorage implements IStorage {
 
   private prepareStatements() {
     this.statements = {
+      // Workspace statements
+      getAllWorkspaces: this.db.prepare('SELECT * FROM workspaces ORDER BY name ASC'),
+      getWorkspace: this.db.prepare('SELECT * FROM workspaces WHERE id = ?'),
+      
       // Employee statements
       getEmployee: this.db.prepare('SELECT * FROM employees WHERE id = ?'),
-      getEmployeeByEmployeeId: this.db.prepare('SELECT * FROM employees WHERE employee_id = ?'),
-      getAllEmployees: this.db.prepare('SELECT * FROM employees ORDER BY designation_order ASC, name ASC'),
-      getMaxSerialNumber: this.db.prepare('SELECT MAX(serial_number) as max_serial FROM employees'),
+      getEmployeeByEmployeeId: this.db.prepare('SELECT * FROM employees WHERE workspace_id = ? AND employee_id = ?'),
+      getAllEmployees: this.db.prepare('SELECT * FROM employees WHERE workspace_id = ? ORDER BY designation_order ASC, name ASC'),
+      getMaxSerialNumber: this.db.prepare('SELECT MAX(serial_number) as max_serial FROM employees WHERE workspace_id = ?'),
       createEmployee: this.db.prepare(`
-        INSERT INTO employees (id, employee_id, name, designation, designation_order, department, status, serial_number)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO employees (id, workspace_id, employee_id, name, designation, designation_order, department, status, serial_number)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `),
       updateEmployee: this.db.prepare(`
         UPDATE employees 
@@ -206,7 +252,7 @@ export class SqliteStorage implements IStorage {
         SELECT ar.*, e.name as employee_name, e.employee_id as employee_code
         FROM attendance_records ar
         LEFT JOIN employees e ON ar.employee_id = e.id
-        WHERE ar.month = ? AND ar.year = ?
+        WHERE e.workspace_id = ? AND ar.month = ? AND ar.year = ?
         ORDER BY e.designation_order ASC, e.name ASC
       `),
       
@@ -215,7 +261,7 @@ export class SqliteStorage implements IStorage {
         SELECT sar.*, e.name as employee_name, e.employee_id as employee_code
         FROM shift_attendance_records sar
         LEFT JOIN employees e ON sar.employee_id = e.id
-        WHERE sar.month = ? AND sar.year = ?
+        WHERE e.workspace_id = ? AND sar.month = ? AND sar.year = ?
         ORDER BY e.designation_order ASC, e.name ASC
       `),
       createOrUpdateShiftAttendance: this.db.prepare(`
@@ -251,27 +297,38 @@ export class SqliteStorage implements IStorage {
     return designationNumbers[designation] || 999;
   }
 
+  // Workspace operations
+  async getAllWorkspaces(): Promise<{id: string, name: string}[]> {
+    const rows = this.statements.getAllWorkspaces.all();
+    return rows.map(row => ({ id: row.id, name: row.name }));
+  }
+
+  async getWorkspace(id: string): Promise<{id: string, name: string} | undefined> {
+    const row = this.statements.getWorkspace.get(id);
+    return row ? { id: row.id, name: row.name } : undefined;
+  }
+
   // Employee operations
   async getEmployee(id: string): Promise<Employee | undefined> {
     const row = this.statements.getEmployee.get(id);
     return row ? this.mapEmployeeFromDb(row) : undefined;
   }
 
-  async getEmployeeByEmployeeId(employeeId: string): Promise<Employee | undefined> {
-    const row = this.statements.getEmployeeByEmployeeId.get(employeeId);
+  async getEmployeeByEmployeeId(workspaceId: string, employeeId: string): Promise<Employee | undefined> {
+    const row = this.statements.getEmployeeByEmployeeId.get(workspaceId, employeeId);
     return row ? this.mapEmployeeFromDb(row) : undefined;
   }
 
-  async getAllEmployees(): Promise<Employee[]> {
-    const rows = this.statements.getAllEmployees.all();
+  async getAllEmployees(workspaceId: string): Promise<Employee[]> {
+    const rows = this.statements.getAllEmployees.all(workspaceId);
     return rows.map(row => this.mapEmployeeFromDb(row));
   }
 
-  async createEmployee(insertEmployee: InsertEmployee): Promise<Employee> {
+  async createEmployee(workspaceId: string, insertEmployee: InsertEmployee): Promise<Employee> {
     const id = randomUUID();
 
-    // Get next serial number
-    const maxSerialResult = this.statements.getMaxSerialNumber.get();
+    // Get next serial number for this workspace
+    const maxSerialResult = this.statements.getMaxSerialNumber.get(workspaceId);
     const nextSerial = (maxSerialResult.max_serial || 0) + 1;
     const employeeId = String(nextSerial).padStart(3, '0');
 
@@ -280,6 +337,7 @@ export class SqliteStorage implements IStorage {
 
     this.statements.createEmployee.run(
       id,
+      workspaceId,
       employeeId,
       insertEmployee.name,
       insertEmployee.designation || null,
@@ -298,6 +356,7 @@ export class SqliteStorage implements IStorage {
       department: insertEmployee.department || null,
       status: insertEmployee.status || "Active",
       serialNumber: nextSerial,
+      workspaceId,
     };
 
     return employee;
@@ -383,14 +442,14 @@ export class SqliteStorage implements IStorage {
     return record;
   }
 
-  async getAttendanceForMonth(month: number, year: number): Promise<AttendanceRecord[]> {
-    const rows = this.statements.getAttendanceForMonth.all(month, year);
+  async getAttendanceForMonth(workspaceId: string, month: number, year: number): Promise<AttendanceRecord[]> {
+    const rows = this.statements.getAttendanceForMonth.all(workspaceId, month, year);
     return rows.map(row => this.mapAttendanceFromDb(row));
   }
 
   // Shift Attendance operations
-  async getShiftAttendanceForMonth(month: number, year: number): Promise<any[]> {
-    const rows = this.statements.getShiftAttendanceForMonth.all(month, year);
+  async getShiftAttendanceForMonth(workspaceId: string, month: number, year: number): Promise<any[]> {
+    const rows = this.statements.getShiftAttendanceForMonth.all(workspaceId, month, year);
     return rows.map(row => this.mapShiftAttendanceFromDb(row));
   }
 
@@ -429,6 +488,7 @@ export class SqliteStorage implements IStorage {
       status: row.status,
       isActive: row.status === 'Active', // Add isActive property based on status
       serialNumber: row.serial_number,
+      workspaceId: row.workspace_id,
     };
   }
 
