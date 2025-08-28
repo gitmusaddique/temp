@@ -129,7 +129,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 app.post("/api/export/xlsx", async (req, res) => {
   try {
-    const { month, year, selectedEmployees } = req.body;
+    const { month, year, selectedEmployees, withColors } = req.body; // Added withColors option
 
     // Enhanced validation with current date check
     const monthNum = parseInt(month);
@@ -177,7 +177,7 @@ app.post("/api/export/xlsx", async (req, res) => {
 
     // Get settings for export headers
     const appSettings = await storage.getSettings();
-    
+
     // Ensure no legacy "Siddik" values are used
     if (appSettings.companyName === 'Siddik') {
       appSettings.companyName = 'Company Name';
@@ -335,7 +335,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         const isDesignationColumn = colNumber === 3;
         const isRemarksColumn = colNumber === headers.length;
         const shouldNotBeBold = isNameColumn || isDesignationColumn || isRemarksColumn;
-        
+
         // Base style for all cells (including empty ones)
         const baseStyle = {
           alignment: { horizontal: 'center', vertical: 'middle' },
@@ -431,7 +431,7 @@ app.post("/api/export/xlsx", async (req, res) => {
   }
 });
 
-  
+
 
   const httpServer = createServer(app);
   return httpServer;

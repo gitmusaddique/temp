@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { X, Download, Info, Loader2 } from "lucide-react";
@@ -29,6 +30,7 @@ export default function ExportModal({
   const [exportData, setExportData] = useState({
     month: defaultMonth,
     year: defaultYear,
+    withColors: true,
   });
   const { toast } = useToast();
 
@@ -60,7 +62,8 @@ export default function ExportModal({
             year: parseInt(exportData.year),
             selectedEmployees: showAllEmployees ? undefined : Array.from(selectedEmployees),
             companyName: appSettings?.companyName || 'Siddik',
-            rigName: appSettings?.rigName || 'ROM-100-II'
+            rigName: appSettings?.rigName || 'ROM-100-II',
+            withColors: exportData.withColors
           }),
       });
 
@@ -165,6 +168,28 @@ export default function ExportModal({
                 </div>
                 <Label className="text-sm font-medium">Excel (XLSX)</Label>
               </div>
+            </div>
+          </div>
+
+          <div>
+            <Label className="text-sm font-medium text-gray-700 mb-2">Export Options</Label>
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="withColors"
+                  checked={exportData.withColors}
+                  onCheckedChange={(checked) => 
+                    setExportData({ ...exportData, withColors: !!checked })
+                  }
+                  data-testid="checkbox-with-colors"
+                />
+                <Label htmlFor="withColors" className="text-sm font-medium">
+                  Export with colors
+                </Label>
+              </div>
+              <p className="text-xs text-gray-600 mt-1 ml-6">
+                When enabled, attendance cells will have background colors (green for Present, red for Absent, yellow for Overtime)
+              </p>
             </div>
           </div>
 
