@@ -293,7 +293,7 @@ export default function AttendanceView() {
         }
       }
 
-      if (shift === "") {
+      if (shift === "blank") {
         delete shiftData[day.toString()];
       } else {
         shiftData[day.toString()] = shift;
@@ -354,7 +354,7 @@ export default function AttendanceView() {
       for (let day = startDay; day <= endDay; day++) {
         const canEnter = canEnterShift(employeeId, day);
         if (canEnter) {
-          if (shift === "") {
+          if (shift === "blank") {
             delete shiftData[day.toString()];
           } else {
             shiftData[day.toString()] = shift;
@@ -414,7 +414,7 @@ export default function AttendanceView() {
 
       // Update all days in the range
       for (let day = startDay; day <= endDay; day++) {
-        if (status === "") {
+        if (status === "blank") {
           delete attendanceData[day.toString()];
         } else {
           attendanceData[day.toString()] = status;
@@ -539,7 +539,7 @@ export default function AttendanceView() {
         }
       }
 
-      if (status === "") {
+      if (status === "blank") {
         delete attendanceData[day.toString()];
       } else {
         attendanceData[day.toString()] = status;
@@ -732,7 +732,7 @@ export default function AttendanceView() {
       employeeId: selectedRowId,
       startDay: parseInt(startDate),
       endDay: parseInt(endDate),
-      status: ""
+      status: "blank" // Use "blank" to clear
     });
   };
 
@@ -1350,7 +1350,7 @@ export default function AttendanceView() {
                                           setSelectedShiftCell({ 
                                             employeeId: employee.id, 
                                             day, 
-                                            currentShift: currentShift === "D" ? "D" : "" 
+                                            currentShift: currentShift === "D" ? "blank" : "D" 
                                           });
                                         }
                                       }}
@@ -1368,7 +1368,7 @@ export default function AttendanceView() {
                                           setSelectedShiftCell({ 
                                             employeeId: employee.id, 
                                             day, 
-                                            currentShift: currentShift === "N" ? "N" : "" 
+                                            currentShift: currentShift === "N" ? "blank" : "N" 
                                           });
                                         }
                                       }}
@@ -1427,14 +1427,14 @@ export default function AttendanceView() {
                 <Button
                   variant="outline"
                   className={`justify-start border-2 transition-all duration-200 ${
-                    selectedShiftCell.currentShift === "" 
+                    selectedShiftCell.currentShift === "blank" 
                       ? "bg-slate-100 text-slate-900 border-slate-700 shadow-sm" 
                       : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
                   }`}
                   onClick={() => updateShiftAttendanceMutation.mutate({
                     employeeId: selectedShiftCell.employeeId,
                     day: selectedShiftCell.day,
-                    shift: ""
+                    shift: "blank"
                   })}
                   disabled={updateShiftAttendanceMutation.isPending}
                 >
@@ -1515,7 +1515,7 @@ export default function AttendanceView() {
                     onClick={() => updateAttendanceMutation.mutate({
                       employeeId: selectedCell.employeeId,
                       day: selectedCell.day,
-                      status: "",
+                      status: "blank",
                       shift: "" // Clear shift when attendance is cleared
                     })}
                     disabled={updateAttendanceMutation.isPending}
@@ -1588,7 +1588,7 @@ export default function AttendanceView() {
                     <SelectValue placeholder="Select shift" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Blank</SelectItem>
+                    <SelectItem value="blank">Blank</SelectItem>
                     <SelectItem value="D">Day (D)</SelectItem>
                     <SelectItem value="N">Night (N)</SelectItem>
                   </SelectContent>
@@ -1767,7 +1767,7 @@ export default function AttendanceView() {
                     <SelectValue placeholder="Select shift" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">Blank</SelectItem>
+                    <SelectItem value="blank">Blank</SelectItem>
                     <SelectItem value="D">Day (D)</SelectItem>
                     <SelectItem value="N">Night (N)</SelectItem>
                   </SelectContent>
@@ -1827,7 +1827,7 @@ export default function AttendanceView() {
 
                     <div className="grid grid-cols-3 gap-2">
                       <Button
-                        onClick={() => handleBulkShiftFill("")}
+                        onClick={() => handleBulkShiftFill("blank")}
                         disabled={!selectedRowId || bulkUpdateShiftAttendanceMutation.isPending}
                         variant="outline"
                         className="border-2 border-slate-400 text-slate-600 hover:bg-slate-50 hover:border-slate-500"
