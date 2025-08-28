@@ -1402,6 +1402,7 @@ export default function AttendanceView() {
         defaultYear={selectedYear}
         selectedEmployees={selectedEmployees}
         showAllEmployees={showAllEmployees}
+        showShiftTable={showShiftTable}
       />
 
       {/* Shift Selection Dialog */}

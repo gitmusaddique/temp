@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -217,31 +217,27 @@ export default function ExportModal({
           </div>
 
           <div>
-            <Label className="text-sm font-medium text-gray-700 mb-2">Select Table to Export</Label>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <RadioGroup
-                value={exportData.tableType}
-                onValueChange={(value: "attendance" | "shifts") => 
-                  setExportData({ ...exportData, tableType: value })
-                }
-                className="space-y-2"
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="attendance" id="attendance" />
-                  <Label htmlFor="attendance" className="text-sm font-medium">
-                    Attendance Table
-                  </Label>
-                </div>
+            <Label className="text-sm font-medium text-gray-700 mb-1">Export Table Type</Label>
+            <Select 
+              value={exportData.tableType} 
+              onValueChange={(value: "attendance" | "shifts") => 
+                setExportData({ ...exportData, tableType: value })
+              }
+            >
+              <SelectTrigger data-testid="select-export-table-type">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="attendance">
+                  Attendance Table (Main)
+                </SelectItem>
                 {showShiftTable && (
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="shifts" id="shifts" />
-                    <Label htmlFor="shifts" className="text-sm font-medium">
-                      Shift Table (Day/Night)
-                    </Label>
-                  </div>
+                  <SelectItem value="shifts">
+                    Shift Table (Day/Night)
+                  </SelectItem>
                 )}
-              </RadioGroup>
-            </div>
+              </SelectContent>
+            </Select>
           </div>
 
           <div>
@@ -290,8 +286,8 @@ export default function ExportModal({
               <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2" />
               <div>
                 <p className="text-sm text-blue-800" data-testid="text-export-info">
-                  Excel export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with {
-                    exportData.tableType === "attendance" ? "attendance table" :
+                  Excel export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with the {
+                    exportData.tableType === "attendance" ? "main attendance table" :
                     "shift table (Day/Night)"
                   } for selected month/year.
                 </p>
