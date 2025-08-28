@@ -236,13 +236,22 @@ app.post("/api/export/xlsx", async (req, res) => {
 
     // Prepare headers
     let headers: string[] = [];
+    let secondHeaders: string[] = [];
+    
     if (includeShifts) {
+      // First header row
       headers = ['SL.NO', 'NAME', 'DESIGNATION'];
+      secondHeaders = ['', '', ''];
+      
+      // Add day columns with D/N subheaders
       dayColumns.forEach(day => {
-        headers.push(`${day} D`);
-        headers.push(`${day} N`);
+        headers.push(day.toString());
+        headers.push(''); // Empty for second column of the day
+        secondHeaders.push('D');
+        secondHeaders.push('N');
       });
       headers.push('T/ON DUTY');
+      secondHeaders.push('');
     } else {
       headers = ['SL.NO', 'NAME', 'DESIGNATION', 'STATUS', ...dayColumns.map(day => day.toString()), 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
     }
@@ -252,7 +261,13 @@ app.post("/api/export/xlsx", async (req, res) => {
     worksheet.addRow(['Attendance']);
     worksheet.addRow([`${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`]);
     worksheet.addRow([]); // Empty row
-    worksheet.addRow(headers); // Headers
+    
+    if (includeShifts) {
+      worksheet.addRow(headers); // First header row
+      worksheet.addRow(secondHeaders); // Second header row (D/N)
+    } else {
+      worksheet.addRow(headers); // Headers
+    }
 
     // Style title rows
     const titleStyle = {
@@ -301,32 +316,77 @@ app.post("/api/export/xlsx", async (req, res) => {
     worksheet.getRow(3).getCell(1).value = `${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`;
     worksheet.getRow(3).getCell(1).style = monthStyle;
 
-    // Style header row (row 5) - make sure all headers are visible
-    const headerRow = worksheet.getRow(5);
-    headers.forEach((header, index) => {
-      const cell = headerRow.getCell(index + 1);
-      cell.value = header;
+    if (includeShifts) {
+      // Style first header row (row 5)
+      const headerRow1 = worksheet.getRow(5);
+      headers.forEach((header, index) => {
+        const cell = headerRow1.getCell(index + 1);
+        cell.value = header;
+        cell.style = {
+          font: { bold: true, size: 11 },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6E6' } },
+          border: {
+            top: { style: 'medium' },
+            bottom: { style: 'thin' },
+            left: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+        };
+      });
 
-      // Special styling for shift headers
-      let fillColor = 'FFE6E6E6';
-      if (includeShifts && header.includes('-D')) {
-        fillColor = 'FFE3F2FD'; // Light blue for Day shift
-      } else if (includeShifts && header.includes('-N')) {
-        fillColor = 'FFF3E5F5'; // Light purple for Night shift
-      }
-
-      cell.style = {
-        font: { bold: true, size: 11 },
-        alignment: { horizontal: 'center', vertical: 'middle' },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } },
-        border: {
-          top: { style: 'medium' },
-          bottom: { style: 'medium' },
-          left: { style: 'thin' },
-          right: { style: 'thin' }
+      // Style second header row (row 6) with D/N
+      const headerRow2 = worksheet.getRow(6);
+      secondHeaders.forEach((header, index) => {
+        const cell = headerRow2.getCell(index + 1);
+        cell.value = header;
+        
+        let fillColor = 'FFE6E6E6';
+        if (header === 'D') {
+          fillColor = 'FFE3F2FD'; // Light blue for Day shift
+        } else if (header === 'N') {
+          fillColor = 'FFF3E5F5'; // Light purple for Night shift
         }
-      };
-    });
+
+        cell.style = {
+          font: { bold: true, size: 11 },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } },
+          border: {
+            top: { style: 'thin' },
+            bottom: { style: 'medium' },
+            left: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+        };
+      });
+
+      // Merge cells for day numbers in shift table
+      let colIndex = 4; // Starting after SL.NO, NAME, DESIGNATION
+      dayColumns.forEach(day => {
+        worksheet.mergeCells(5, colIndex, 5, colIndex + 1); // Merge day number across D and N columns
+        colIndex += 2;
+      });
+      
+    } else {
+      // Style header row (row 5) for regular table
+      const headerRow = worksheet.getRow(5);
+      headers.forEach((header, index) => {
+        const cell = headerRow.getCell(index + 1);
+        cell.value = header;
+        cell.style = {
+          font: { bold: true, size: 11 },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6E6' } },
+          border: {
+            top: { style: 'medium' },
+            bottom: { style: 'medium' },
+            left: { style: 'thin' },
+            right: { style: 'thin' }
+          }
+        };
+      });
+    }
 
     // Fill employee data
     filteredEmployees.forEach((employee, index) => {
@@ -358,14 +418,18 @@ app.post("/api/export/xlsx", async (req, res) => {
         }
       }
 
-      const rowIndex = index + 6; // Starting from row 6 (after title rows and headers)
+      const rowIndex = includeShifts ? index + 7 : index + 6; // Starting from row 7 for shift table (after title rows and two header rows), row 6 for regular table
       const row = worksheet.getRow(rowIndex);
 
       row.getCell(1).value = index + 1; // Use sequential numbering based on filtered list
       row.getCell(2).value = employee.name || '';
       row.getCell(3).value = employee.designation || '';
+      
+      if (includeShifts) {
+        row.getCell(4).value = employee.status || '';
+      }
 
-      let cellIndex = 4;
+      let cellIndex = includeShifts ? 5 : 4;
 
       if (includeShifts) {
         // Add day columns with shift data (D/N columns)
@@ -458,7 +522,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         }
 
         // Color code attendance/shift columns - only for cells with actual values and when withColors is enabled
-        if (withColors && colNumber >= 4) {
+        if (withColors && colNumber >= (includeShifts ? 5 : 4)) {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
             const headerForColumn = headers[colNumber - 1];
@@ -478,7 +542,7 @@ app.post("/api/export/xlsx", async (req, res) => {
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
                 };
               }
-            } else if (colNumber < 4 + daysInMonth) {
+            } else if (colNumber < (includeShifts ? 5 : 4) + (includeShifts ? daysInMonth * 2 : daysInMonth)) {
               // Regular attendance columns
               switch(cellValue.toString().trim()) {
                 case 'P':
@@ -526,14 +590,17 @@ app.post("/api/export/xlsx", async (req, res) => {
     ];
 
     if (includeShifts) {
-      // Add D/N columns (2 per day)
+      // Add STATUS column for shift table
+      columnWidths.push({ width: 10 }); // STATUS
+      // Add D/N columns (2 per day) with better spacing
       dayColumns.forEach(() => {
-        columnWidths.push({ width: 3 }); // D column
-        columnWidths.push({ width: 3 }); // N column
+        columnWidths.push({ width: 4 }); // D column
+        columnWidths.push({ width: 4 }); // N column
       });
       columnWidths.push({ width: 12 }); // T/ON DUTY
     } else {
       // Add regular day columns
+      columnWidths.push({ width: 10 }); // STATUS
       columnWidths.push(...dayColumns.map(() => ({ width: 4 })));
       columnWidths.push({ width: 12 }); // T/ON DUTY
       columnWidths.push({ width: 10 }); // OT DAYS
