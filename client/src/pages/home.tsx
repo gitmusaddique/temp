@@ -310,7 +310,7 @@ export default function Home() {
                       <div className="flex items-center justify-between w-full">
                         <div className="flex items-center space-x-4 flex-1">
                           <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center flex-shrink-0">
-                            <User className="w-5 h-5 text-primary" />
+                            <span className="text-sm font-bold text-primary">{index + 1}</span>
                           </div>
                           <div className="flex items-center space-x-8 flex-1">
                             <div className="min-w-0 flex-1">

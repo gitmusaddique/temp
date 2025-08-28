@@ -678,6 +678,9 @@ export default function AttendanceView() {
           .attendance-table th:hover {
             background-color: #e0e7ff !important;
           }
+          .attendance-table thead th.day-header:hover {
+            background-color: #e0e7ff !important;
+          }
           .attendance-table tr:hover {
             background-color: #f8fafc !important;
           }
@@ -742,7 +745,7 @@ export default function AttendanceView() {
                       STATUS
                     </th>
                     {dayColumns.map(day => (
-                      <th key={day} className="px-1 py-2 text-center text-xs font-extrabold text-gray-700 border-r w-8" data-testid={`header-day-${day}`}>
+                      <th key={day} className="px-1 py-2 text-center text-xs font-extrabold text-gray-700 border-r w-8 day-header" data-testid={`header-day-${day}`}>
                         {day}
                       </th>
                     ))}
