@@ -74,10 +74,6 @@ export default function AttendanceView() {
 
   const currentWorkspace = workspaces.find((w: any) => w.id === workspaceId);
 
-  if (!workspaceId) {
-    return <div>Invalid workspace</div>;
-  }
-
   // Load settings from database
   const { data: settings } = useQuery({
     queryKey: ["/api/settings", workspaceId],
@@ -131,6 +127,11 @@ export default function AttendanceView() {
     },
     enabled: !!workspaceId,
   });
+
+  // Early validation after all hooks are declared
+  if (!workspaceId) {
+    return <div>Invalid workspace</div>;
+  }
 
   if (employeesLoading || attendanceLoading || shiftLoading) {
     return (

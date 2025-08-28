@@ -238,3 +238,5 @@ export function EmployeeCard({ employee, onDelete }: EmployeeCardProps) {
     </>
   );
 }
+
+export default EmployeeCard;

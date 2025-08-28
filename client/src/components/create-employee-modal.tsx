@@ -26,7 +26,7 @@ interface CreateEmployeeModalProps {
   workspaceId: string;
 }
 
-export default function CreateEmployeeModal({ isOpen, onClose, onEmployeeCreated, workspaceId }: CreateEmployeeModalProps) {
+function CreateEmployeeModal({ isOpen, onClose, onEmployeeCreated, workspaceId }: CreateEmployeeModalProps) {
   const [formData, setFormData] = useState({
     name: "",
     designation: "",
@@ -206,3 +206,5 @@ export default function CreateEmployeeModal({ isOpen, onClose, onEmployeeCreated
     </Dialog>
   );
 }
+
+export default CreateEmployeeModal;
