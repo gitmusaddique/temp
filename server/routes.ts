@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
 app.post("/api/export/xlsx", async (req, res) => {
   try {
-    const { month, year, selectedEmployees, withColors, includeShifts, tableType = "attendance" } = req.body; // Added tableType option
+    const { month, year, selectedEmployees, withColors, tableType = "attendance" } = req.body; // Added tableType option
 
     // Enhanced validation with current date check
     const monthNum = parseInt(month);
@@ -179,23 +179,6 @@ app.post("/api/export/xlsx", async (req, res) => {
       return res.status(400).json({
         message: `Cannot export future dates. Current date is ${currentMonth}/${currentYear}`
       });
-    }
-
-    let employees = await storage.getAllEmployees();
-    const attendance = await storage.getAttendanceForMonth(monthNum, yearNum);
-    const shiftAttendance = includeShifts ? await storage.getShiftAttendanceForMonth(monthNum, yearNum) : [];
-
-    // Filter employees if selectedEmployees array is provided AND filter out inactive employees
-    if (selectedEmployees && Array.isArray(selectedEmployees) && selectedEmployees.length > 0) {
-      employees = employees.filter(emp => selectedEmployees.includes(emp.id) && emp.status !== 'Inactive');
-    } else {
-      // If no specific employees selected, filter out inactive ones by default
-      employees = employees.filter(emp => emp.status !== 'Inactive');
-    }
-
-
-    if (!employees || employees.length === 0) {
-      return res.status(404).json({ message: "No employees found for the selected criteria" });
     }
 
     const monthNames = [
@@ -218,26 +201,50 @@ app.post("/api/export/xlsx", async (req, res) => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet(`${monthNames[monthNum - 1]} ${yearNum}`);
 
-    // Prepare headers
-    let headers = [
-      "SL.NO",
-      "NAME",
-      "DESIGNATION"
-    ];
+    // Determine if we should include shifts based on tableType
+    const includeShifts = tableType === "shifts";
+
+    // Get employees data
+    const employees = await storage.getAllEmployees();
+
+    // Get records based on table type
+    let attendanceRecords: any[] = [];
+    let shiftAttendanceRecords: any[] = [];
 
     if (includeShifts) {
-      // Add day headers with D/N subheaders
-      dayColumns.forEach(day => {
-        headers.push(`${day}-D`, `${day}-N`);
-      });
+      // For shift table, we need both attendance and shift data
+      attendanceRecords = await storage.getAttendanceForMonth(monthNum, yearNum);
+      shiftAttendanceRecords = await storage.getShiftAttendanceForMonth(monthNum, yearNum);
     } else {
-      // Add simple day headers
-      headers.push(...dayColumns.map(day => day.toString()));
+      // For attendance table, we only need attendance data
+      attendanceRecords = await storage.getAttendanceForMonth(monthNum, yearNum);
     }
 
-    headers.push("T/ON DUTY");
-    if (!includeShifts) {
-      headers.push("OT DAYS", "REMARKS");
+    // Filter employees if selectedEmployees array is provided AND filter out inactive employees
+    let filteredEmployees = employees;
+    if (selectedEmployees && Array.isArray(selectedEmployees) && selectedEmployees.length > 0) {
+      filteredEmployees = employees.filter(emp => selectedEmployees.includes(emp.id) && emp.status !== 'Inactive');
+    } else {
+      // If no specific employees selected, filter out inactive ones by default
+      filteredEmployees = employees.filter(emp => emp.status !== 'Inactive');
+    }
+
+
+    if (!filteredEmployees || filteredEmployees.length === 0) {
+      return res.status(404).json({ message: "No employees found for the selected criteria" });
+    }
+
+    // Prepare headers
+    let headers: string[] = [];
+    if (includeShifts) {
+      headers = ['SL.NO', 'NAME', 'DESIGNATION'];
+      dayColumns.forEach(day => {
+        headers.push(`${day} D`);
+        headers.push(`${day} N`);
+      });
+      headers.push('T/ON DUTY');
+    } else {
+      headers = ['SL.NO', 'NAME', 'DESIGNATION', 'STATUS', ...dayColumns.map(day => day.toString()), 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
     }
 
     // Add title rows
@@ -322,9 +329,9 @@ app.post("/api/export/xlsx", async (req, res) => {
     });
 
     // Fill employee data
-    employees.forEach((employee, index) => {
-      const attendanceRecord = attendance.find(a => a.employeeId === employee.id);
-      const shiftRecord = shiftAttendance.find(a => a.employeeId === employee.id);
+    filteredEmployees.forEach((employee, index) => {
+      const attendanceRecord = attendanceRecords.find(r => r.employeeId === employee.id);
+      const shiftRecord = includeShifts ? shiftAttendanceRecords.find(r => r.employeeId === employee.id) : undefined;
 
       let attendanceData: Record<string, string> = {};
       let shiftData: Record<string, string> = {};
@@ -458,13 +465,13 @@ app.post("/api/export/xlsx", async (req, res) => {
 
             if (includeShifts) {
               // Color shift columns
-              if (headerForColumn && headerForColumn.includes('-D')) {
+              if (headerForColumn && headerForColumn.includes(' D')) {
                 // Day shift column
                 cell.style = {
                   ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } } // Light blue for Day
                 };
-              } else if (headerForColumn && headerForColumn.includes('-N')) {
+              } else if (headerForColumn && headerForColumn.includes(' N')) {
                 // Night shift column  
                 cell.style = {
                   ...baseStyle,
