@@ -164,7 +164,7 @@ export class SqliteStorage implements IStorage {
       
       // Update existing employees to belong to domestic workspace
       const updateExistingEmployees = this.db.prepare(`
-        UPDATE employees SET workspace_id = 'domestic' WHERE workspace_id IS NULL
+        UPDATE employees SET workspace_id = 'domestic' WHERE workspace_id IS NULL OR workspace_id = ''
       `);
       const result = updateExistingEmployees.run();
       console.log(`Migrated ${result.changes} existing employees to domestic workspace`);
@@ -173,6 +173,19 @@ export class SqliteStorage implements IStorage {
       if (!error.message.includes('duplicate column name')) {
         console.error('Migration error:', error);
       }
+    }
+
+    // Ensure all employees have a workspace_id (for existing data)
+    try {
+      const updateMissingWorkspaceIds = this.db.prepare(`
+        UPDATE employees SET workspace_id = 'domestic' WHERE workspace_id IS NULL OR workspace_id = ''
+      `);
+      const result = updateMissingWorkspaceIds.run();
+      if (result.changes > 0) {
+        console.log(`Set workspace_id for ${result.changes} existing employees`);
+      }
+    } catch (error: any) {
+      console.error('Error updating workspace_id for existing employees:', error);
     }
 
     // Always update ALL existing employees with proper designation order

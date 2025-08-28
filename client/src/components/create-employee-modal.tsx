@@ -206,3 +206,5 @@ export function CreateEmployeeModal({ isOpen, onClose, onEmployeeCreated, worksp
     </Dialog>
   );
 }
+
+export default CreateEmployeeModal;
