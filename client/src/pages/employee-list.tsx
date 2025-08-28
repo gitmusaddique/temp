@@ -4,8 +4,8 @@ import { useParams, Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, ArrowLeft } from "lucide-react";
-import { EmployeeCard } from "@/components/employee-card";
-import { CreateEmployeeModal } from "@/components/create-employee-modal";
+import EmployeeCard from "@/components/employee-card";
+import CreateEmployeeModal from "@/components/create-employee-modal";
 import type { Employee } from "@shared/schema";
 
 export default function EmployeeList() {
