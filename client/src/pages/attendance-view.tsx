@@ -882,7 +882,7 @@ export default function AttendanceView() {
                 </Button>
 
                 <Select value={tableView} onValueChange={(value: "attendance" | "shift") => setTableView(value)}>
-                  <SelectTrigger className="w-48 bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-600 hover:border-purple-700 font-medium" data-testid="select-table-view">
+                  <SelectTrigger className="w-40 bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-600 hover:border-purple-700 font-medium" data-testid="select-table-view">
                     <SelectValue placeholder="Select table view" />
                   </SelectTrigger>
                   <SelectContent>
