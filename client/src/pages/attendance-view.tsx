@@ -560,8 +560,8 @@ export default function AttendanceView() {
 
       {/* Employee Selection Modal */}
       <Dialog open={!showAllEmployees && showSelectionPanel} onOpenChange={(open) => !open && setShowSelectionPanel(false)}>
-        <DialogContent className="max-w-4xl max-h-[80vh]" aria-describedby="employee-selection-description">
-          <DialogHeader>
+        <DialogContent className="w-full max-w-4xl h-[80vh] flex flex-col" aria-describedby="employee-selection-description">
+          <DialogHeader className="flex-shrink-0">
             <DialogTitle>Select Employees for Attendance</DialogTitle>
           </DialogHeader>
 
@@ -569,9 +569,9 @@ export default function AttendanceView() {
             Select employees to include in the attendance view
           </div>
 
-          <div className="flex flex-col space-y-4">
+          <div className="flex flex-col flex-1 min-h-0 space-y-4">
             {/* Designation and Status Filters for Modal */}
-            <div className="pb-4 border-b flex justify-between items-center">
+            <div className="flex-shrink-0 pb-4 border-b flex justify-between items-center">
               <div className="flex items-center space-x-4">
                 <label className="text-sm font-medium text-gray-700">Filter by Designation:</label>
                 <Select value={modalDesignationFilter} onValueChange={setModalDesignationFilter}>
@@ -604,50 +604,59 @@ export default function AttendanceView() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 max-h-96 overflow-y-auto">
-              {modalFilteredEmployees.map(employee => (
-                <div 
-                  key={employee.id}
-                  className={`p-3 border rounded-lg cursor-pointer transition-all ${
-                    selectedEmployees.has(employee.id)
-                      ? "border-blue-500 bg-blue-50 text-blue-900"
-                      : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
-                  }`}
-                  onClick={() => toggleEmployeeSelection(employee.id)}
-                  data-testid={`employee-selection-${employee.id}`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-sm">{employee.name}</p>
-                      <p className="text-xs text-gray-600">{employee.designation || "No designation"}</p>
-                      <p className={`text-xs ${employee.isActive ? 'text-green-600' : 'text-red-600'}`}>
-                        {employee.isActive ? 'Active' : 'Inactive'}
-                      </p>
-                    </div>
-                    {selectedEmployees.has(employee.id) && (
-                      <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-xs">✓</span>
-                      </div>
-                    )}
-                  </div>
+
+            {/* Employee Grid - Scrollable */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              {modalFilteredEmployees.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-center text-gray-500 py-8">
+                    No employees found for the selected filters.
+                  </p>
                 </div>
-              ))}
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-1">
+                  {modalFilteredEmployees.map(employee => (
+                    <div 
+                      key={employee.id}
+                      className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                        selectedEmployees.has(employee.id)
+                          ? "border-blue-500 bg-blue-50 text-blue-900"
+                          : "border-gray-200 hover:border-gray-300 hover:bg-gray-50"
+                      }`}
+                      onClick={() => toggleEmployeeSelection(employee.id)}
+                      data-testid={`employee-selection-${employee.id}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-sm">{employee.name}</p>
+                          <p className="text-xs text-gray-600">{employee.designation || "No designation"}</p>
+                          <p className={`text-xs ${employee.isActive ? 'text-green-600' : 'text-red-600'}`}>
+                            {employee.isActive ? 'Active' : 'Inactive'}
+                          </p>
+                        </div>
+                        {selectedEmployees.has(employee.id) && (
+                          <div className="w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                            <span className="text-white text-xs">✓</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {modalFilteredEmployees.length === 0 && (
-              <p className="text-center text-gray-500 py-8">
-                No employees found for the selected filters.
-              </p>
-            )}
-
-            <div className="flex items-center justify-between pt-4 border-t">
-              <p className="text-sm text-gray-600">
-                {selectedEmployees.size} of {filteredEmployees.length} employee(s) selected
-                {(modalDesignationFilter !== "all" || modalStatusFilter !== "all") && (
-                  <span className="text-gray-500"> • Showing {modalFilteredEmployees.length} for current filters</span>
-                )}
-              </p>
-              <div className="space-x-2">
+            {/* Footer with buttons - Fixed at bottom */}
+            <div className="flex-shrink-0 pt-4 border-t bg-white">
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-sm text-gray-600">
+                  {selectedEmployees.size} of {filteredEmployees.length} employee(s) selected
+                  {(modalDesignationFilter !== "all" || modalStatusFilter !== "all") && (
+                    <span className="text-gray-500"> • Showing {modalFilteredEmployees.length} for current filters</span>
+                  )}
+                </p>
+              </div>
+              <div className="flex justify-end space-x-2">
                 <Button
                   variant="outline"
                   size="sm"
