@@ -45,6 +45,7 @@ export default function AttendanceView() {
   const [endDate, setEndDate] = useState("");
   const [showDateRangeModal, setShowDateRangeModal] = useState(false);
   const [bulkAction, setBulkAction] = useState<"fill" | "clear" | null>(null);
+  const [hoveredColumn, setHoveredColumn] = useState<number | null>(null);
 
   // Load settings from database
   const { data: settings } = useQuery({
@@ -433,6 +434,15 @@ export default function AttendanceView() {
     });
   };
 
+  // Column highlighting handlers
+  const handleColumnMouseEnter = (dayIndex: number) => {
+    setHoveredColumn(dayIndex);
+  };
+
+  const handleColumnMouseLeave = () => {
+    setHoveredColumn(null);
+  };
+
   return (
     <div className="min-h-screen bg-surface">
       {/* Header */}
@@ -675,20 +685,15 @@ export default function AttendanceView() {
       {/* Attendance Table */}
       <div className="max-w-full mx-auto px-4 py-8">
         <style jsx>{`
-          /* Row highlighting */
           .attendance-table tbody tr:hover {
             background-color: #f1f5f9 !important;
           }
           .attendance-table tbody tr:hover td {
             background-color: #f1f5f9 !important;
           }
-          
-          /* Header hover */
           .attendance-table thead th:hover {
             background-color: #e0e7ff !important;
           }
-          
-          /* Individual cell hover */
           .attendance-table td.day-cell:hover {
             background-color: #dbeafe !important;
             transform: scale(1.05);
@@ -696,222 +701,7 @@ export default function AttendanceView() {
             z-index: 10;
             position: relative;
           }
-          
-          /* Column highlighting - when hovering over any cell in a column, highlight the entire column */
-          .attendance-table .day-column-0:hover ~ .day-column-0,
-          .attendance-table .day-column-0:hover,
-          .attendance-table thead .day-column-0:hover,
-          .attendance-table tbody .day-column-0:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-1:hover ~ .day-column-1,
-          .attendance-table .day-column-1:hover,
-          .attendance-table thead .day-column-1:hover,
-          .attendance-table tbody .day-column-1:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-2:hover ~ .day-column-2,
-          .attendance-table .day-column-2:hover,
-          .attendance-table thead .day-column-2:hover,
-          .attendance-table tbody .day-column-2:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-3:hover ~ .day-column-3,
-          .attendance-table .day-column-3:hover,
-          .attendance-table thead .day-column-3:hover,
-          .attendance-table tbody .day-column-3:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-4:hover ~ .day-column-4,
-          .attendance-table .day-column-4:hover,
-          .attendance-table thead .day-column-4:hover,
-          .attendance-table tbody .day-column-4:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-5:hover ~ .day-column-5,
-          .attendance-table .day-column-5:hover,
-          .attendance-table thead .day-column-5:hover,
-          .attendance-table tbody .day-column-5:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-6:hover ~ .day-column-6,
-          .attendance-table .day-column-6:hover,
-          .attendance-table thead .day-column-6:hover,
-          .attendance-table tbody .day-column-6:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-7:hover ~ .day-column-7,
-          .attendance-table .day-column-7:hover,
-          .attendance-table thead .day-column-7:hover,
-          .attendance-table tbody .day-column-7:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-8:hover ~ .day-column-8,
-          .attendance-table .day-column-8:hover,
-          .attendance-table thead .day-column-8:hover,
-          .attendance-table tbody .day-column-8:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-9:hover ~ .day-column-9,
-          .attendance-table .day-column-9:hover,
-          .attendance-table thead .day-column-9:hover,
-          .attendance-table tbody .day-column-9:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-10:hover ~ .day-column-10,
-          .attendance-table .day-column-10:hover,
-          .attendance-table thead .day-column-10:hover,
-          .attendance-table tbody .day-column-10:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-11:hover ~ .day-column-11,
-          .attendance-table .day-column-11:hover,
-          .attendance-table thead .day-column-11:hover,
-          .attendance-table tbody .day-column-11:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-12:hover ~ .day-column-12,
-          .attendance-table .day-column-12:hover,
-          .attendance-table thead .day-column-12:hover,
-          .attendance-table tbody .day-column-12:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-13:hover ~ .day-column-13,
-          .attendance-table .day-column-13:hover,
-          .attendance-table thead .day-column-13:hover,
-          .attendance-table tbody .day-column-13:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-14:hover ~ .day-column-14,
-          .attendance-table .day-column-14:hover,
-          .attendance-table thead .day-column-14:hover,
-          .attendance-table tbody .day-column-14:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-15:hover ~ .day-column-15,
-          .attendance-table .day-column-15:hover,
-          .attendance-table thead .day-column-15:hover,
-          .attendance-table tbody .day-column-15:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-16:hover ~ .day-column-16,
-          .attendance-table .day-column-16:hover,
-          .attendance-table thead .day-column-16:hover,
-          .attendance-table tbody .day-column-16:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-17:hover ~ .day-column-17,
-          .attendance-table .day-column-17:hover,
-          .attendance-table thead .day-column-17:hover,
-          .attendance-table tbody .day-column-17:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-18:hover ~ .day-column-18,
-          .attendance-table .day-column-18:hover,
-          .attendance-table thead .day-column-18:hover,
-          .attendance-table tbody .day-column-18:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-19:hover ~ .day-column-19,
-          .attendance-table .day-column-19:hover,
-          .attendance-table thead .day-column-19:hover,
-          .attendance-table tbody .day-column-19:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-20:hover ~ .day-column-20,
-          .attendance-table .day-column-20:hover,
-          .attendance-table thead .day-column-20:hover,
-          .attendance-table tbody .day-column-20:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-21:hover ~ .day-column-21,
-          .attendance-table .day-column-21:hover,
-          .attendance-table thead .day-column-21:hover,
-          .attendance-table tbody .day-column-21:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-22:hover ~ .day-column-22,
-          .attendance-table .day-column-22:hover,
-          .attendance-table thead .day-column-22:hover,
-          .attendance-table tbody .day-column-22:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-23:hover ~ .day-column-23,
-          .attendance-table .day-column-23:hover,
-          .attendance-table thead .day-column-23:hover,
-          .attendance-table tbody .day-column-23:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-24:hover ~ .day-column-24,
-          .attendance-table .day-column-24:hover,
-          .attendance-table thead .day-column-24:hover,
-          .attendance-table tbody .day-column-24:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-25:hover ~ .day-column-25,
-          .attendance-table .day-column-25:hover,
-          .attendance-table thead .day-column-25:hover,
-          .attendance-table tbody .day-column-25:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-26:hover ~ .day-column-26,
-          .attendance-table .day-column-26:hover,
-          .attendance-table thead .day-column-26:hover,
-          .attendance-table tbody .day-column-26:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-27:hover ~ .day-column-27,
-          .attendance-table .day-column-27:hover,
-          .attendance-table thead .day-column-27:hover,
-          .attendance-table tbody .day-column-27:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-28:hover ~ .day-column-28,
-          .attendance-table .day-column-28:hover,
-          .attendance-table thead .day-column-28:hover,
-          .attendance-table tbody .day-column-28:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-29:hover ~ .day-column-29,
-          .attendance-table .day-column-29:hover,
-          .attendance-table thead .day-column-29:hover,
-          .attendance-table tbody .day-column-29:hover {
-            background-color: #dbeafe !important;
-          }
-          
-          .attendance-table .day-column-30:hover ~ .day-column-30,
-          .attendance-table .day-column-30:hover,
-          .attendance-table thead .day-column-30:hover,
-          .attendance-table tbody .day-column-30:hover {
+          .column-highlighted {
             background-color: #dbeafe !important;
           }
         `}</style>
@@ -967,7 +757,15 @@ export default function AttendanceView() {
                       STATUS
                     </th>
                     {dayColumns.map((day, dayIndex) => (
-                      <th key={day} className={`px-1 py-2 text-center text-xs font-extrabold text-gray-700 border-r w-8 day-header day-column-${dayIndex}`} data-testid={`header-day-${day}`}>
+                      <th 
+                        key={day} 
+                        className={`px-1 py-2 text-center text-xs font-extrabold text-gray-700 border-r w-8 day-header ${
+                          hoveredColumn === dayIndex ? 'column-highlighted' : ''
+                        }`} 
+                        data-testid={`header-day-${day}`}
+                        onMouseEnter={() => handleColumnMouseEnter(dayIndex)}
+                        onMouseLeave={handleColumnMouseLeave}
+                      >
                         {day}
                       </th>
                     ))}
@@ -1036,7 +834,9 @@ export default function AttendanceView() {
                             return (
                               <td 
                                 key={day} 
-                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer day-cell day-column-${dayIndex} ${
+                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer day-cell ${
+                                  hoveredColumn === dayIndex ? 'column-highlighted' : ''
+                                } ${
                                   status === "P" ? "bg-green-50 text-green-700" : 
                                   status === "A" ? "bg-red-50 text-red-700" : 
                                   status === "OT" ? "bg-yellow-50 text-yellow-800" : ""
@@ -1045,6 +845,8 @@ export default function AttendanceView() {
                                   e.stopPropagation();
                                   setSelectedCell({ employeeId: employee.id, day, currentStatus: status });
                                 }}
+                                onMouseEnter={() => handleColumnMouseEnter(dayIndex)}
+                                onMouseLeave={handleColumnMouseLeave}
                                 data-testid={`cell-attendance-${employee.id}-${day}`}
                                 title="Click to edit attendance"
                               >
