@@ -1366,16 +1366,18 @@ export default function AttendanceView() {
                                         !canEnter ? "bg-gray-100 cursor-not-allowed" :
                                         currentShift === "D" ? "bg-blue-100 text-blue-800" : "hover:bg-blue-50"
                                       }`}
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         if (canEnter) {
                                           setSelectedShiftCell({ 
                                             employeeId: employee.id, 
                                             day, 
-                                            currentShift: currentShift === "D" ? "blank" : "D" 
+                                            currentShift: currentShift || ""
                                           });
                                         }
                                       }}
-                                      title={!canEnter ? "Employee must have P or OT status to enter shift" : "Click to toggle Day shift"}
+                                      title={!canEnter ? "Employee must have P or OT status to enter shift" : "Click to edit Day shift"}
+                                      data-testid={`cell-day-shift-${employee.id}-${day}`}
                                     >
                                       {currentShift === "D" ? "P" : ""}
                                     </div>
@@ -1384,16 +1386,18 @@ export default function AttendanceView() {
                                         !canEnter ? "bg-gray-100 cursor-not-allowed" :
                                         currentShift === "N" ? "bg-indigo-100 text-indigo-800" : "hover:bg-indigo-50"
                                       }`}
-                                      onClick={() => {
+                                      onClick={(e) => {
+                                        e.stopPropagation();
                                         if (canEnter) {
                                           setSelectedShiftCell({ 
                                             employeeId: employee.id, 
                                             day, 
-                                            currentShift: currentShift === "N" ? "blank" : "N" 
+                                            currentShift: currentShift || ""
                                           });
                                         }
                                       }}
-                                      title={!canEnter ? "Employee must have P or OT status to enter shift" : "Click to toggle Night shift"}
+                                      title={!canEnter ? "Employee must have P or OT status to enter shift" : "Click to edit Night shift"}
+                                      data-testid={`cell-night-shift-${employee.id}-${day}`}
                                     >
                                       {currentShift === "N" ? "P" : ""}
                                     </div>
