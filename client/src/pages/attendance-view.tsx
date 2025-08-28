@@ -49,6 +49,8 @@ export default function AttendanceView() {
   const [selectedRemarksEmployee, setSelectedRemarksEmployee] = useState<{id: string, name: string} | null>(null);
   const [showShiftTable, setShowShiftTable] = useState(false);
   const [selectedShiftCell, setSelectedShiftCell] = useState<{employeeId: string, day: number, currentShift: string} | null>(null);
+  const [selectedBulkShift, setSelectedBulkShift] = useState<string>("D");
+  const [selectedIndividualShift, setSelectedIndividualShift] = useState<string>("D");
 
   // Load settings from database
   const { data: settings } = useQuery({
@@ -686,11 +688,14 @@ export default function AttendanceView() {
       return;
     }
 
+    const shiftToUse = (status === "P" || status === "OT") ? selectedBulkShift : "";
+
     bulkUpdateAttendanceMutation.mutate({
       employeeId: selectedRowId,
       startDay: parseInt(startDate),
       endDay: parseInt(endDate),
-      status
+      status,
+      shift: shiftToUse
     });
   };
 
@@ -1490,86 +1495,104 @@ export default function AttendanceView() {
             </DialogHeader>
 
             <div id="attendance-status-description" className="sr-only">
-              Select attendance status for the selected day
+              Select attendance status and shift for the selected day
             </div>
 
-            <div className="space-y-3">
-              <p className="text-sm text-gray-600">
-                Select attendance status:
-              </p>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Attendance Status:
+                </p>
 
-              <div className="grid grid-cols-2 gap-3">
-                <Button
-                  variant="outline"
-                  className={`justify-start border-2 transition-all duration-200 ${
-                    selectedCell.currentStatus === "" 
-                      ? "bg-slate-100 text-slate-900 border-slate-700 shadow-sm" 
-                      : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
-                  }`}
-                  onClick={() => updateAttendanceMutation.mutate({
-                    employeeId: selectedCell.employeeId,
-                    day: selectedCell.day,
-                    status: "",
-                    shift: "" // Clear shift when attendance is cleared
-                  })}
-                  disabled={updateAttendanceMutation.isPending}
-                >
-                  Blank
-                </Button>
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "" 
+                        ? "bg-slate-100 text-slate-900 border-slate-700 shadow-sm" 
+                        : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "",
+                      shift: "" // Clear shift when attendance is cleared
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Blank
+                  </Button>
 
-                <Button
-                  variant="outline"
-                  className={`justify-start border-2 transition-all duration-200 ${
-                    selectedCell.currentStatus === "P" 
-                      ? "bg-emerald-100 text-emerald-800 border-emerald-600 shadow-sm" 
-                      : "bg-emerald-50 text-emerald-700 border-emerald-400 hover:bg-emerald-100 hover:border-emerald-500"
-                  }`}
-                  onClick={() => updateAttendanceMutation.mutate({
-                    employeeId: selectedCell.employeeId,
-                    day: selectedCell.day,
-                    status: "P",
-                    shift: "D" // Default shift to Day when 'P' is selected
-                  })}
-                  disabled={updateAttendanceMutation.isPending}
-                >
-                  Present (P)
-                </Button>
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "P" 
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-600 shadow-sm" 
+                        : "bg-emerald-50 text-emerald-700 border-emerald-400 hover:bg-emerald-100 hover:border-emerald-500"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "P",
+                      shift: selectedIndividualShift || "D"
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Present (P)
+                  </Button>
 
-                <Button
-                  variant="outline"
-                  className={`justify-start border-2 transition-all duration-200 ${
-                    selectedCell.currentStatus === "A" 
-                      ? "bg-rose-100 text-rose-800 border-rose-600 shadow-sm" 
-                      : "bg-rose-50 text-rose-700 border-rose-400 hover:bg-rose-100 hover:border-rose-500"
-                  }`}
-                  onClick={() => updateAttendanceMutation.mutate({
-                    employeeId: selectedCell.employeeId,
-                    day: selectedCell.day,
-                    status: "A",
-                    shift: "" // Clear shift when 'A' is selected
-                  })}
-                  disabled={updateAttendanceMutation.isPending}
-                >
-                  Absent (A)
-                </Button>
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "A" 
+                        ? "bg-rose-100 text-rose-800 border-rose-600 shadow-sm" 
+                        : "bg-rose-50 text-rose-700 border-rose-400 hover:bg-rose-100 hover:border-rose-500"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "A",
+                      shift: "" // Clear shift when 'A' is selected
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Absent (A)
+                  </Button>
 
-                <Button
-                  variant="outline"
-                  className={`justify-start border-2 transition-all duration-200 ${
-                    selectedCell.currentStatus === "OT" 
-                      ? "bg-amber-100 text-amber-900 border-amber-600 shadow-sm" 
-                      : "bg-amber-50 text-amber-800 border-amber-400 hover:bg-amber-100 hover:border-amber-500"
-                  }`}
-                  onClick={() => updateAttendanceMutation.mutate({
-                    employeeId: selectedCell.employeeId,
-                    day: selectedCell.day,
-                    status: "OT",
-                    shift: "D" // Default shift to Day when 'OT' is selected
-                  })}
-                  disabled={updateAttendanceMutation.isPending}
-                >
-                  Overtime (OT)
-                </Button>
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "OT" 
+                        ? "bg-amber-100 text-amber-900 border-amber-600 shadow-sm" 
+                        : "bg-amber-50 text-amber-800 border-amber-400 hover:bg-amber-100 hover:border-amber-500"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "OT",
+                      shift: selectedIndividualShift || "D"
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Overtime (OT)
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Shift (for P/OT status):
+                </p>
+                <Select value={selectedIndividualShift} onValueChange={setSelectedIndividualShift}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select shift" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Blank</SelectItem>
+                    <SelectItem value="D">Day (D)</SelectItem>
+                    <SelectItem value="N">Night (N)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {updateAttendanceMutation.isPending && (
@@ -1802,49 +1825,65 @@ export default function AttendanceView() {
               Valid range: 1 to {daysInMonth} for {monthNames[parseInt(selectedMonth) - 1]} {selectedYear}
             </p>
 
-            <div className="space-y-3">
-              <p className="text-sm font-medium text-gray-700">Fill Range With:</p>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Shift (for P/OT status):</p>
+                <Select value={selectedBulkShift} onValueChange={setSelectedBulkShift}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select shift" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Blank</SelectItem>
+                    <SelectItem value="D">Day (D)</SelectItem>
+                    <SelectItem value="N">Night (N)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
-              <div className="grid grid-cols-2 gap-2">
-                <Button
-                  onClick={() => handleBulkClear()}
-                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                  variant="outline"
-                  className="border-2 border-slate-400 text-slate-600 hover:bg-slate-50 hover:border-slate-500"
-                  data-testid="button-fill-blank"
-                >
-                  Blank
-                </Button>
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Fill Range With:</p>
 
-                <Button
-                  onClick={() => handleBulkFill("P")}
-                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                  variant="outline"
-                  className="border-2 border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500"
-                  data-testid="button-fill-present"
-                >
-                  Present (P)
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    onClick={() => handleBulkClear()}
+                    disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                    variant="outline"
+                    className="border-2 border-slate-400 text-slate-600 hover:bg-slate-50 hover:border-slate-500"
+                    data-testid="button-fill-blank"
+                  >
+                    Blank
+                  </Button>
 
-                <Button
-                  onClick={() => handleBulkFill("A")}
-                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                  variant="outline"
-                  className="border-2 border-rose-400 text-rose-700 hover:bg-rose-50 hover:border-rose-500"
-                  data-testid="button-fill-absent"
-                >
-                  Absent (A)
-                </Button>
+                  <Button
+                    onClick={() => handleBulkFill("P")}
+                    disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                    variant="outline"
+                    className="border-2 border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500"
+                    data-testid="button-fill-present"
+                  >
+                    Present (P)
+                  </Button>
 
-                <Button
-                  onClick={() => handleBulkFill("OT")}
-                  disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
-                  variant="outline"
-                  className="border-2 border-amber-400 text-amber-800 hover:bg-amber-50 hover:border-amber-500"
-                  data-testid="button-fill-overtime"
-                >
-                  Overtime (OT)
-                </Button>
+                  <Button
+                    onClick={() => handleBulkFill("A")}
+                    disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                    variant="outline"
+                    className="border-2 border-rose-400 text-rose-700 hover:bg-rose-50 hover:border-rose-500"
+                    data-testid="button-fill-absent"
+                  >
+                    Absent (A)
+                  </Button>
+
+                  <Button
+                    onClick={() => handleBulkFill("OT")}
+                    disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
+                    variant="outline"
+                    className="border-2 border-amber-400 text-amber-800 hover:bg-amber-50 hover:border-amber-500"
+                    data-testid="button-fill-overtime"
+                  >
+                    Overtime (OT)
+                  </Button>
+                </div>
               </div>
 
               {showShiftTable && (
