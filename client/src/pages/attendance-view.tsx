@@ -686,35 +686,25 @@ export default function AttendanceView() {
       <div className="max-w-full mx-auto px-4 py-8">
         <style jsx>{`
           .attendance-table tbody tr:hover {
-            background-color: #f1f5f9 !important;
+            background-color: #f8fafc !important;
           }
           .attendance-table tbody tr:hover td {
-            background-color: #f1f5f9 !important;
-          }
-          .attendance-table thead th:hover {
-            background-color: #e0e7ff !important;
+            background-color: #f8fafc !important;
           }
           .attendance-table td.day-cell:hover {
             background-color: #dbeafe !important;
-            transform: scale(1.05);
-            transition: all 0.2s ease;
-            z-index: 999;
+            transform: scale(1.02);
+            transition: all 0.15s ease;
+            position: relative;
+            z-index: 10;
+          }
+          .attendance-table th.column-highlighted {
+            background-color: #e0e7ff !important;
             position: relative;
           }
-          .column-highlighted {
+          .attendance-table td.column-highlighted {
             background-color: #dbeafe !important;
-            z-index: 100 !important;
-            position: relative !important;
-          }
-          .attendance-table thead th.column-highlighted {
-            background-color: #e0e7ff !important;
-            z-index: 150 !important;
-            position: relative !important;
-          }
-          .attendance-table tbody td.column-highlighted {
-            background-color: #dbeafe !important;
-            z-index: 100 !important;
-            position: relative !important;
+            position: relative;
           }
         `}</style>
         <Card className="overflow-hidden">
