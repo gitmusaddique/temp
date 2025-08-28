@@ -33,7 +33,6 @@ export default function ExportModal({
     month: defaultMonth,
     year: defaultYear,
     withColors: true,
-    includeShifts: false,
     tableType: "attendance" as "attendance" | "shifts",
   });
   const { toast } = useToast();
@@ -68,7 +67,6 @@ export default function ExportModal({
             companyName: appSettings?.companyName || 'Siddik',
             rigName: appSettings?.rigName || 'ROM-100-II',
             withColors: exportData.withColors,
-            includeShifts: exportData.includeShifts,
             tableType: exportData.tableType
           }),
       });
@@ -150,7 +148,7 @@ export default function ExportModal({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-full max-w-md" data-testid="modal-export" aria-describedby="export-description">
+      <DialogContent className="w-full max-w-md max-h-[80vh] overflow-y-auto" data-testid="modal-export" aria-describedby="export-description">
         <DialogHeader>
           <DialogTitle>
             Export Attendance
@@ -158,7 +156,7 @@ export default function ExportModal({
         </DialogHeader>
 
         <div id="export-description" className="sr-only">
-          Export attendance data for a specific month and year in XLSX or PDF format.
+          Export attendance data for a specific month and year in XLSX format.
         </div>
 
         <div className="space-y-4">
@@ -205,19 +203,7 @@ export default function ExportModal({
           </div>
 
           <div>
-            <Label className="text-sm font-medium text-gray-700 mb-2">Export Format</Label>
-            <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="flex items-center space-x-2">
-                <div className="w-4 h-4 bg-green-600 rounded-full flex items-center justify-center">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
-                </div>
-                <Label className="text-sm font-medium">Excel (XLSX)</Label>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <Label className="text-sm font-medium text-gray-700 mb-1">Export Table Type</Label>
+            <Label className="text-sm font-medium text-gray-700 mb-1">Table Type</Label>
             <Select 
               value={exportData.tableType} 
               onValueChange={(value: "attendance" | "shifts") => 
@@ -243,47 +229,28 @@ export default function ExportModal({
           <div>
             <Label className="text-sm font-medium text-gray-700 mb-2">Export Options</Label>
             <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="space-y-3">
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="withColors"
-                    checked={exportData.withColors}
-                    onCheckedChange={(checked) => 
-                      setExportData({ ...exportData, withColors: !!checked })
-                    }
-                    data-testid="checkbox-with-colors"
-                  />
-                  <Label htmlFor="withColors" className="text-sm font-medium">
-                    Export with colors
-                  </Label>
-                </div>
-                <p className="text-xs text-gray-600 ml-6">
-                  When enabled, attendance cells will have background colors (green for Present, red for Absent, yellow for Overtime)
-                </p>
-                
-                <div className="flex items-center space-x-2">
-                  <Checkbox
-                    id="includeShifts"
-                    checked={exportData.includeShifts}
-                    onCheckedChange={(checked) => 
-                      setExportData({ ...exportData, includeShifts: !!checked })
-                    }
-                    data-testid="checkbox-include-shifts"
-                  />
-                  <Label htmlFor="includeShifts" className="text-sm font-medium">
-                    Include shift data (Day/Night)
-                  </Label>
-                </div>
-                <p className="text-xs text-gray-600 ml-6">
-                  When enabled, export will include Day/Night shift columns below each date
-                </p>
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="withColors"
+                  checked={exportData.withColors}
+                  onCheckedChange={(checked) => 
+                    setExportData({ ...exportData, withColors: !!checked })
+                  }
+                  data-testid="checkbox-with-colors"
+                />
+                <Label htmlFor="withColors" className="text-sm font-medium">
+                  Export with colors
+                </Label>
               </div>
+              <p className="text-xs text-gray-600 ml-6 mt-1">
+                When enabled, attendance cells will have background colors (green for Present, red for Absent, yellow for Overtime)
+              </p>
             </div>
           </div>
 
           <div className="bg-blue-50 p-3 rounded-lg">
             <div className="flex items-start">
-              <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2" />
+              <Info className="w-4 h-4 text-blue-600 mt-0.5 mr-2 flex-shrink-0" />
               <div>
                 <p className="text-sm text-blue-800" data-testid="text-export-info">
                   Excel export will include {showAllEmployees ? 'all employees' : `${selectedEmployees.size} selected employee(s)`} with the {
@@ -294,30 +261,30 @@ export default function ExportModal({
               </div>
             </div>
           </div>
-
-          <div className="modal-buttons">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium"
-            >
-              Cancel
-            </Button>
-            <Button variant="default" onClick={handleExport} className="min-w-24" disabled={isLoading} data-testid="button-generate-export">
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Exporting...
-                </>
-              ) : (
-                <>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export XLSX
-                </>
-              )}
-            </Button>
-          </div>
         </div>
+
+        <DialogFooter className="flex justify-end space-x-2 pt-4">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="bg-red-600 hover:bg-red-700 text-white border-2 border-red-600 hover:border-red-700 font-medium"
+          >
+            Cancel
+          </Button>
+          <Button variant="default" onClick={handleExport} className="min-w-24" disabled={isLoading} data-testid="button-generate-export">
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Exporting...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4 mr-2" />
+                Export XLSX
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
