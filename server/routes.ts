@@ -237,12 +237,12 @@ app.post("/api/export/xlsx", async (req, res) => {
     // Prepare headers
     let headers: string[] = [];
     let secondHeaders: string[] = [];
-    
+
     if (includeShifts) {
       // First header row
       headers = ['SL.NO', 'NAME', 'DESIGNATION'];
       secondHeaders = ['', '', ''];
-      
+
       // Add day columns with D/N subheaders
       dayColumns.forEach(day => {
         headers.push(day.toString());
@@ -261,7 +261,7 @@ app.post("/api/export/xlsx", async (req, res) => {
     worksheet.addRow(['Attendance']);
     worksheet.addRow([`${appSettings.rigName}     MONTH:-${monthNames[monthNum - 1].toUpperCase()}. ${yearNum}`]);
     worksheet.addRow([]); // Empty row
-    
+
     if (includeShifts) {
       worksheet.addRow(headers); // First header row
       worksheet.addRow(secondHeaders); // Second header row (D/N)
@@ -340,7 +340,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       secondHeaders.forEach((header, index) => {
         const cell = headerRow2.getCell(index + 1);
         cell.value = header;
-        
+
         let fillColor = 'FFE6E6E6';
         if (header === 'D') {
           fillColor = 'FFE3F2FD'; // Light blue for Day shift
@@ -367,7 +367,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         worksheet.mergeCells(5, colIndex, 5, colIndex + 1); // Merge day number across D and N columns
         colIndex += 2;
       });
-      
+
     } else {
       // Style header row (row 5) for regular table
       const headerRow = worksheet.getRow(5);
@@ -424,12 +424,12 @@ app.post("/api/export/xlsx", async (req, res) => {
       row.getCell(1).value = index + 1; // Use sequential numbering based on filtered list
       row.getCell(2).value = employee.name || '';
       row.getCell(3).value = employee.designation || '';
-      
-      if (includeShifts) {
+
+      if (!includeShifts) {
         row.getCell(4).value = employee.status || '';
       }
 
-      let cellIndex = includeShifts ? 5 : 4;
+      let cellIndex = includeShifts ? 4 : 5;
 
       if (includeShifts) {
         // Add day columns with shift data (D/N columns)
@@ -522,7 +522,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         }
 
         // Color code attendance/shift columns - only for cells with actual values and when withColors is enabled
-        if (withColors && colNumber >= (includeShifts ? 5 : 4)) {
+        if (withColors && colNumber >= (includeShifts ? 4 : 5)) {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
             const headerForColumn = headers[colNumber - 1];
@@ -542,7 +542,7 @@ app.post("/api/export/xlsx", async (req, res) => {
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
                 };
               }
-            } else if (colNumber < (includeShifts ? 5 : 4) + (includeShifts ? daysInMonth * 2 : daysInMonth)) {
+            } else if (colNumber < (includeShifts ? 4 : 5) + (includeShifts ? daysInMonth * 2 : daysInMonth)) {
               // Regular attendance columns
               switch(cellValue.toString().trim()) {
                 case 'P':
