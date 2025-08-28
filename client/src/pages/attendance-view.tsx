@@ -37,7 +37,7 @@ export default function AttendanceView() {
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
-  const [modalStatusFilter, setModalStatusFilter] = useState("all"); // Added for status filtering in modal
+  const [modalStatusFilter, setModalStatusFilter] = useState("active"); // Default to active filter
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
@@ -143,10 +143,18 @@ export default function AttendanceView() {
     }
   }, [selectedDesignation, filteredEmployees]);
 
+  // Initialize selectedEmployees with all active employees when data loads
+  React.useEffect(() => {
+    if (employees.length > 0 && selectedEmployees.size === 0) {
+      const activeEmployeeIds = employees.filter(emp => emp.isActive).map(emp => emp.id);
+      setSelectedEmployees(new Set(activeEmployeeIds));
+    }
+  }, [employees]);
+
   // Reset modal designation filter when main designation changes
   React.useEffect(() => {
     setModalDesignationFilter("all");
-    setModalStatusFilter("all"); // Reset status filter as well
+    setModalStatusFilter("active"); // Reset to active filter
   }, [selectedDesignation]);
 
   // Toggle individual employee selection
@@ -535,9 +543,7 @@ export default function AttendanceView() {
                   variant="outline"
                   onClick={() => {
                     setShowSelectionPanel(true);
-                    if (showAllEmployees) {
-                      setShowAllEmployees(false);
-                    }
+                    setShowAllEmployees(false);
                   }}
                   data-testid="button-toggle-employee-view"
                   className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-4 py-2"
