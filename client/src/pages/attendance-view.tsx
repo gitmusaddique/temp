@@ -1761,21 +1761,7 @@ export default function AttendanceView() {
 
             <div className="space-y-4">
               <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Shift (for P/OT status):</p>
-                <Select value={selectedBulkShift} onValueChange={setSelectedBulkShift}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select shift" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="blank">Blank</SelectItem>
-                    <SelectItem value="D">Day (D)</SelectItem>
-                    <SelectItem value="N">Night (N)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">Fill Range With:</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">Attendance Status:</p>
 
                 <div className="grid grid-cols-2 gap-2">
                   <Button
@@ -1818,6 +1804,20 @@ export default function AttendanceView() {
                     Overtime (OT)
                   </Button>
                 </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">Shift (for P/OT status):</p>
+                <Select value={selectedBulkShift} onValueChange={setSelectedBulkShift}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select shift" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="blank">Blank</SelectItem>
+                    <SelectItem value="D">Day (D)</SelectItem>
+                    <SelectItem value="N">Night (N)</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               {showShiftTable && (
