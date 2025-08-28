@@ -698,11 +698,23 @@ export default function AttendanceView() {
             background-color: #dbeafe !important;
             transform: scale(1.05);
             transition: all 0.2s ease;
-            z-index: 10;
+            z-index: 999;
             position: relative;
           }
           .column-highlighted {
             background-color: #dbeafe !important;
+            z-index: 100 !important;
+            position: relative !important;
+          }
+          .attendance-table thead th.column-highlighted {
+            background-color: #e0e7ff !important;
+            z-index: 150 !important;
+            position: relative !important;
+          }
+          .attendance-table tbody td.column-highlighted {
+            background-color: #dbeafe !important;
+            z-index: 100 !important;
+            position: relative !important;
           }
         `}</style>
         <Card className="overflow-hidden">
