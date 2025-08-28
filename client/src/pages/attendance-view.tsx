@@ -692,6 +692,39 @@ export default function AttendanceView() {
             transform: scale(1.05);
             transition: all 0.2s ease;
           }
+          .attendance-table .day-column-0:hover,
+          .attendance-table .day-column-1:hover,
+          .attendance-table .day-column-2:hover,
+          .attendance-table .day-column-3:hover,
+          .attendance-table .day-column-4:hover,
+          .attendance-table .day-column-5:hover,
+          .attendance-table .day-column-6:hover,
+          .attendance-table .day-column-7:hover,
+          .attendance-table .day-column-8:hover,
+          .attendance-table .day-column-9:hover,
+          .attendance-table .day-column-10:hover,
+          .attendance-table .day-column-11:hover,
+          .attendance-table .day-column-12:hover,
+          .attendance-table .day-column-13:hover,
+          .attendance-table .day-column-14:hover,
+          .attendance-table .day-column-15:hover,
+          .attendance-table .day-column-16:hover,
+          .attendance-table .day-column-17:hover,
+          .attendance-table .day-column-18:hover,
+          .attendance-table .day-column-19:hover,
+          .attendance-table .day-column-20:hover,
+          .attendance-table .day-column-21:hover,
+          .attendance-table .day-column-22:hover,
+          .attendance-table .day-column-23:hover,
+          .attendance-table .day-column-24:hover,
+          .attendance-table .day-column-25:hover,
+          .attendance-table .day-column-26:hover,
+          .attendance-table .day-column-27:hover,
+          .attendance-table .day-column-28:hover,
+          .attendance-table .day-column-29:hover,
+          .attendance-table .day-column-30:hover {
+            background-color: #dbeafe !important;
+          }
         `}</style>
         <Card className="overflow-hidden">
           <CardHeader className="text-center bg-gray-50 border-b">
@@ -744,8 +777,8 @@ export default function AttendanceView() {
                     <th className="px-4 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-status">
                       STATUS
                     </th>
-                    {dayColumns.map(day => (
-                      <th key={day} className="px-1 py-2 text-center text-xs font-extrabold text-gray-700 border-r w-8 day-header" data-testid={`header-day-${day}`}>
+                    {dayColumns.map((day, dayIndex) => (
+                      <th key={day} className={`px-1 py-2 text-center text-xs font-extrabold text-gray-700 border-r w-8 day-header day-column-${dayIndex}`} data-testid={`header-day-${day}`}>
                         {day}
                       </th>
                     ))}
@@ -809,12 +842,12 @@ export default function AttendanceView() {
                           }`} data-testid={`text-status-${employee.id}`}>
                             {employee.isActive ? 'Active' : 'Inactive'}
                           </td>
-                          {dayColumns.map(day => {
+                          {dayColumns.map((day, dayIndex) => {
                             const status = getAttendanceStatus(employee.id, day);
                             return (
                               <td 
                                 key={day} 
-                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer day-cell ${
+                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer day-cell day-column-${dayIndex} ${
                                   status === "P" ? "bg-green-50 text-green-700" : 
                                   status === "A" ? "bg-red-50 text-red-700" : 
                                   status === "OT" ? "bg-yellow-50 text-yellow-800" : ""
