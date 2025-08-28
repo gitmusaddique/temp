@@ -324,8 +324,8 @@ app.post("/api/export/xlsx", async (req, res) => {
       });
 
       // Add summary columns - show blank instead of 0
-      row.getCell(4 + daysInMonth).value = presentDays > 0 ? presentDays : '';
-      row.getCell(4 + daysInMonth + 1).value = otDays > 0 ? otDays : '';
+      row.getCell(4 + daysInMonth).value = presentDays > 0 ? presentDays : null;
+      row.getCell(4 + daysInMonth + 1).value = otDays > 0 ? otDays : null;
       row.getCell(4 + daysInMonth + 2).value = attendanceRecord?.remarks || '';
 
       // Style each cell in the data row
