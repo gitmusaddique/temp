@@ -358,8 +358,8 @@ app.post("/api/export/xlsx", async (req, res) => {
           return;
         }
 
-        // Color code attendance columns - only for cells with actual values
-        if (colNumber >= 4 && colNumber < 4 + daysInMonth) {
+        // Color code attendance columns - only for cells with actual values and when withColors is enabled
+        if (withColors && colNumber >= 4 && colNumber < 4 + daysInMonth) {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
             switch(cellValue.toString().trim()) {
