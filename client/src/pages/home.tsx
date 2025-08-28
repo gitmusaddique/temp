@@ -14,7 +14,7 @@ import ExportModal from "@/components/export-modal";
 import DeleteConfirmationModal from "@/components/delete-confirmation-modal";
 import EditEmployeeModal from "@/components/edit-employee-modal";
 import SettingsModal from "@/components/settings-modal";
-import { Building, Download, CalendarDays, Search, Plus, Bell, Settings, Users, Pencil, Trash2 } from "lucide-react";
+import { Building, Download, CalendarDays, Search, Plus, Bell, Settings, User, Pencil, Trash2 } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -34,8 +34,6 @@ export default function Home() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
-  const [selectedWorkspace, setSelectedWorkspace] = useState("domestic");
-  const [workspaces, setWorkspaces] = useState<{id: string, name: string}[]>([]);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -44,11 +42,11 @@ export default function Home() {
   const currentDate = getCurrentDate();
   const currentMonth = currentDate.getMonth() + 1;
   const currentYear = currentDate.getFullYear();
-
+  
   const getDefaultMonth = () => {
     return currentMonth <= 12 ? currentMonth.toString() : "12";
   };
-
+  
   const getDefaultYear = () => {
     return currentYear >= 2025 ? currentYear.toString() : "2025";
   };
@@ -65,24 +63,16 @@ export default function Home() {
     }
   }, [settings]);
 
-  useEffect(() => {
-    fetch('/api/workspaces')
-      .then(res => res.json())
-      .then(data => setWorkspaces(data))
-      .catch(error => console.error('Failed to fetch workspaces:', error));
-  }, []);
-
   const { data: employees = [], isLoading } = useQuery<Employee[]>({
-    queryKey: ["/api/employees", selectedWorkspace], // Fetch employees for the selected workspace
-    enabled: !!selectedWorkspace, // Only run query if selectedWorkspace is set
+    queryKey: ["/api/employees"],
   });
 
   const deleteEmployeeMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/employees/${id}?workspaceId=${selectedWorkspace}`);
+      await apiRequest("DELETE", `/api/employees/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/employees", selectedWorkspace] });
+      queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
       toast({
         title: "Success",
         description: "Employee deleted successfully",
@@ -191,25 +181,6 @@ export default function Home() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Workspace Selection */}
-        <div className="mb-6">
-          <div className="flex items-center space-x-4">
-            <label className="text-sm font-medium text-gray-700">Select Workspace:</label>
-            <Select value={selectedWorkspace} onValueChange={setSelectedWorkspace}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select workspace" />
-              </SelectTrigger>
-              <SelectContent>
-                {workspaces.map(workspace => (
-                  <SelectItem key={workspace.id} value={workspace.id}>
-                    {workspace.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-
         {/* Quick Actions */}
         <div className="mb-8">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -249,7 +220,7 @@ export default function Home() {
               </CardContent>
             </Card>
 
-            <Link href={`/attendance/${selectedWorkspace}`}>
+            <Link href="/attendance">
               <Card
                 className="hover:shadow-material-lg transition-shadow cursor-pointer"
                 data-testid="card-view-attendance"

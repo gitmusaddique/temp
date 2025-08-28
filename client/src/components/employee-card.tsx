@@ -18,7 +18,7 @@ interface EmployeeCardProps {
   onDelete: () => void;
 }
 
-export function EmployeeCard({ employee, onDelete }: EmployeeCardProps) {
+export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({
     name: employee.name,
@@ -238,5 +238,3 @@ export function EmployeeCard({ employee, onDelete }: EmployeeCardProps) {
     </>
   );
 }
-
-export default EmployeeCard;

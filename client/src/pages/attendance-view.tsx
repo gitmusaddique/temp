@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ArrowLeft, Download, X, Bell, Settings, Building } from "lucide-react";
-import { Link, useParams } from "wouter";
+import { Link } from "wouter";
 import type { Employee, AttendanceRecord, ShiftAttendanceRecord } from "@shared/schema";
 import ExportModal from "@/components/export-modal";
 import SettingsModal from "@/components/settings-modal";
@@ -22,9 +22,6 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
 }
 
 export default function AttendanceView() {
-  const { workspaceId } = useParams();
-
-  // All useState hooks declared first in consistent order
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return now.getMonth() + 1 <= 12 ? (now.getMonth() + 1).toString() : "12";
@@ -40,7 +37,7 @@ export default function AttendanceView() {
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
-  const [modalStatusFilter, setModalStatusFilter] = useState("active");
+  const [modalStatusFilter, setModalStatusFilter] = useState("active"); // Default to active filter
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
@@ -54,89 +51,31 @@ export default function AttendanceView() {
   const [selectedShiftCell, setSelectedShiftCell] = useState<{employeeId: string, day: number, currentShift: string} | null>(null);
   const [selectedBulkShift, setSelectedBulkShift] = useState<string>("D");
   const [selectedIndividualShift, setSelectedIndividualShift] = useState<string>("D");
-  const [remarksState, setRemarksState] = useState<Record<string, string>>({});
-
-  // All custom hooks declared after useState
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
-
-  // All useQuery hooks declared next
-  const { data: workspaces = [] } = useQuery({
-    queryKey: ['workspaces'],
-    queryFn: async () => {
-      const response = await fetch('/api/workspaces');
-      if (!response.ok) {
-        throw new Error('Failed to fetch workspaces');
-      }
-      return response.json();
-    },
-  });
-
-  const currentWorkspace = workspaces.find((w: any) => w.id === workspaceId);
 
   // Load settings from database
   const { data: settings } = useQuery({
-    queryKey: ["/api/settings", workspaceId],
-    enabled: !!workspaceId,
+    queryKey: ["/api/settings"],
   });
 
-  // Fetch employees
-  const { data: employees = [], isLoading: employeesLoading } = useQuery({
-    queryKey: ['employees', workspaceId],
-    queryFn: async () => {
-      if (!workspaceId) return [];
-      const response = await fetch(`/api/employees/${workspaceId}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch employees');
-      }
-      return response.json();
-    },
-    enabled: !!workspaceId,
+  useEffect(() => {
+    if (settings) {
+      setAppSettings(settings);
+    }
+  }, [settings]);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { data: employees = [] } = useQuery<Employee[]>({
+    queryKey: ["/api/employees"],
   });
 
-  // Fetch attendance records
-  const { data: attendanceRecords = [], isLoading: attendanceLoading } = useQuery({
-    queryKey: ['attendance', workspaceId, selectedMonth, selectedYear],
-    queryFn: async () => {
-      if (!workspaceId) return [];
-      const response = await fetch(`/api/attendance/${workspaceId}/${selectedMonth}/${selectedYear}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch attendance records');
-      }
-      return response.json();
-    },
-    enabled: !!workspaceId,
+  const { data: attendanceRecords = [] } = useQuery<AttendanceRecord[]>({
+    queryKey: ["/api/attendance", selectedMonth, selectedYear],
   });
 
-  // Fetch shift attendance records
-  const { data: shiftAttendanceRecords = [], isLoading: shiftLoading } = useQuery({
-    queryKey: ['shift-attendance', workspaceId, selectedMonth, selectedYear],
-    queryFn: async () => {
-      if (!workspaceId) return [];
-      const response = await fetch(`/api/shift-attendance/${workspaceId}/${selectedMonth}/${selectedYear}`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch shift attendance records');
-      }
-      return response.json();
-    },
-    enabled: !!workspaceId,
+  const { data: shiftAttendanceRecords = [] } = useQuery<ShiftAttendanceRecord[]>({
+    queryKey: ["/api/shift-attendance", selectedMonth, selectedYear],
   });
-
-  // Early validation after all hooks are declared
-  if (!workspaceId) {
-    return <div>Invalid workspace</div>;
-  }
-
-  if (employeesLoading || attendanceLoading || shiftLoading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-4 flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-2">Loading attendance data...</h2>
-          <p className="text-gray-600">Please wait while we fetch the latest information.</p>
-        </div>
-      </div>
-    );
-  }
 
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -201,6 +140,99 @@ export default function AttendanceView() {
     ? filteredEmployees.filter(emp => emp.isActive) // Only show active employees by default
     : filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
 
+
+
+  // Reset selections when designation filter changes
+  React.useEffect(() => {
+    if (selectedDesignation !== "all") {
+      // Clear selections that are no longer in the filtered list
+      const filteredIds = new Set(filteredEmployees.map(emp => emp.id));
+      setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
+    }
+  }, [selectedDesignation, filteredEmployees]);
+
+  // Initialize selectedEmployees with all active employees when data loads
+  React.useEffect(() => {
+    if (employees.length > 0 && selectedEmployees.size === 0) {
+      const activeEmployeeIds = employees.filter(emp => emp.isActive).map(emp => emp.id);
+      setSelectedEmployees(new Set(activeEmployeeIds));
+    }
+  }, [employees]);
+
+  // Reset modal designation filter when main designation changes
+  React.useEffect(() => {
+    setModalDesignationFilter("all");
+    setModalStatusFilter("active"); // Reset to active filter
+  }, [selectedDesignation]);
+
+  // Toggle individual employee selection
+  const toggleEmployeeSelection = (employeeId: string) => {
+    const newSelected = new Set(selectedEmployees);
+    if (newSelected.has(employeeId)) {
+      newSelected.delete(employeeId);
+    } else {
+      newSelected.add(employeeId);
+    }
+    setSelectedEmployees(newSelected);
+  };
+
+  // Get attendance status for a specific employee and day
+  const getAttendanceStatus = (employeeId: string, day: number): string => {
+    const record = attendanceRecords.find(r => r.employeeId === employeeId);
+    if (!record || !record.attendanceData) return "";
+
+    try {
+      const data = JSON.parse(record.attendanceData) as Record<string, string>;
+      return data[day.toString()] || "";
+    } catch {
+      return "";
+    }
+  };
+
+  // Get remarks for a specific employee
+  const getEmployeeRemarks = (employeeId: string): string => {
+    const record = attendanceRecords.find(r => r.employeeId === employeeId);
+    return record?.remarks || "";
+  };
+
+  // Get shift attendance for a specific employee and day
+  const getShiftAttendance = (employeeId: string, day: number): string => {
+    const record = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+    if (!record || !record.shiftData) return "";
+
+    try {
+      const data = JSON.parse(record.shiftData) as Record<string, string>;
+      return data[day.toString()] || "";
+    } catch {
+      return "";
+    }
+  };
+
+  // Check if day has P or OT status (required for shift entry)
+  const canEnterShift = (employeeId: string, day: number): boolean => {
+    const status = getAttendanceStatus(employeeId, day);
+    return status === "P" || status === "OT";
+  };
+
+  // Local state for remarks to avoid constant API calls
+  const [remarksState, setRemarksState] = useState<Record<string, string>>({});
+
+  // Initialize remarks state when attendance records change (only if not already set)
+  React.useEffect(() => {
+    const newRemarksState: Record<string, string> = {};
+    attendanceRecords.forEach(record => {
+      // Only update if we don't already have local state for this employee
+      if (record.remarks && !(record.employeeId in remarksState)) {
+        newRemarksState[record.employeeId] = record.remarks;
+      }
+    });
+
+    // Only update if we have new data to set
+    if (Object.keys(newRemarksState).length > 0) {
+      setRemarksState(prev => ({ ...prev, ...newRemarksState }));
+    }
+  }, [attendanceRecords]);
+
   // Debounced remarks update
   const updateRemarksMutation = useMutation({
     mutationFn: async ({ employeeId, remarks }: { employeeId: string, remarks: string }) => {
@@ -215,7 +247,7 @@ export default function AttendanceView() {
         }
       }
 
-      const response = await apiRequest('POST', `/api/attendance/${workspaceId}`, {
+      const response = await apiRequest('POST', '/api/attendance', {
         employeeId,
         month: parseInt(selectedMonth),
         year: parseInt(selectedYear),
@@ -228,7 +260,7 @@ export default function AttendanceView() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance", workspaceId, selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
     },
     onError: (error: any) => {
       toast({
@@ -267,7 +299,7 @@ export default function AttendanceView() {
         shiftData[day.toString()] = shift;
       }
 
-      const response = await fetch(`/api/shift-attendance/${workspaceId}`, {
+      const response = await fetch('/api/shift-attendance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -288,7 +320,7 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Shift attendance updated successfully"
@@ -330,7 +362,7 @@ export default function AttendanceView() {
         }
       }
 
-      const response = await fetch(`/api/shift-attendance/${workspaceId}`, {
+      const response = await fetch('/api/shift-attendance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -351,7 +383,7 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Shift attendance updated successfully"
@@ -389,7 +421,7 @@ export default function AttendanceView() {
         }
       }
 
-      const response = await fetch(`/api/attendance/${workspaceId}`, {
+      const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -424,7 +456,7 @@ export default function AttendanceView() {
           shiftData[day.toString()] = shift;
         }
 
-        await fetch(`/api/shift-attendance/${workspaceId}`, {
+        await fetch('/api/shift-attendance', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -453,7 +485,7 @@ export default function AttendanceView() {
             delete shiftData[day.toString()];
           }
 
-          await fetch(`/api/shift-attendance/${workspaceId}`, {
+          await fetch('/api/shift-attendance', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -472,8 +504,8 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance", workspaceId, selectedMonth, selectedYear] });
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Attendance and shift updated successfully"
@@ -513,7 +545,7 @@ export default function AttendanceView() {
         attendanceData[day.toString()] = status;
       }
 
-      const response = await fetch(`/api/attendance/${workspaceId}`, {
+      const response = await fetch('/api/attendance', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -545,7 +577,7 @@ export default function AttendanceView() {
 
         shiftData[day.toString()] = shift;
 
-        await fetch(`/api/shift-attendance/${workspaceId}`, {
+        await fetch('/api/shift-attendance', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
@@ -571,7 +603,7 @@ export default function AttendanceView() {
 
           delete shiftData[day.toString()];
 
-          await fetch(`/api/shift-attendance/${workspaceId}`, {
+          await fetch('/api/shift-attendance', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json'
@@ -590,8 +622,8 @@ export default function AttendanceView() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/attendance", workspaceId, selectedMonth, selectedYear] });
-      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", workspaceId, selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
       toast({
         title: "Success",
         description: "Attendance and shift updated successfully"
@@ -750,135 +782,50 @@ export default function AttendanceView() {
     setHoveredColumn(null);
   };
 
-  // All useEffect hooks declared at the end after all other hooks
-  // Reset selections when designation filter changes
-  React.useEffect(() => {
-    if (selectedDesignation !== "all") {
-      const filteredIds = new Set(employees.filter(emp => 
-        emp.designation === selectedDesignation
-      ).map(emp => emp.id));
-      setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
-    }
-  }, [selectedDesignation, employees]);
-
-  // Initialize selectedEmployees with all active employees when data loads
-  React.useEffect(() => {
-    if (employees.length > 0 && selectedEmployees.size === 0) {
-      const activeEmployeeIds = employees.filter(emp => emp.isActive).map(emp => emp.id);
-      setSelectedEmployees(new Set(activeEmployeeIds));
-    }
-  }, [employees.length, selectedEmployees.size]);
-
-  // Reset modal designation filter when main designation changes
-  React.useEffect(() => {
-    setModalDesignationFilter("all");
-    setModalStatusFilter("active");
-  }, [selectedDesignation]);
-
-  // Initialize remarks state when attendance records change
-  React.useEffect(() => {
-    if (attendanceRecords.length > 0) {
-      const newRemarksState: Record<string, string> = {};
-      attendanceRecords.forEach(record => {
-        if (record.remarks && !(record.employeeId in remarksState)) {
-          newRemarksState[record.employeeId] = record.remarks;
-        }
-      });
-
-      if (Object.keys(newRemarksState).length > 0) {
-        setRemarksState(prev => ({ ...prev, ...newRemarksState }));
-      }
-    }
-  }, [attendanceRecords.length]);
-
-  // Toggle individual employee selection
-  const toggleEmployeeSelection = (employeeId: string) => {
-    const newSelected = new Set(selectedEmployees);
-    if (newSelected.has(employeeId)) {
-      newSelected.delete(employeeId);
-    } else {
-      newSelected.add(employeeId);
-    }
-    setSelectedEmployees(newSelected);
-  };
-
-  // Get attendance status for a specific employee and day
-  const getAttendanceStatus = (employeeId: string, day: number): string => {
-    const record = attendanceRecords.find(r => r.employeeId === employeeId);
-    if (!record || !record.attendanceData) return "";
-
-    try {
-      const data = JSON.parse(record.attendanceData) as Record<string, string>;
-      return data[day.toString()] || "";
-    } catch {
-      return "";
-    }
-  };
-
-  // Get remarks for a specific employee
-  const getEmployeeRemarks = (employeeId: string): string => {
-    const record = attendanceRecords.find(r => r.employeeId === employeeId);
-    return record?.remarks || "";
-  };
-
-  // Get shift attendance for a specific employee and day
-  const getShiftAttendance = (employeeId: string, day: number): string => {
-    const record = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
-    if (!record || !record.shiftData) return "";
-
-    try {
-      const data = JSON.parse(record.shiftData) as Record<string, string>;
-      return data[day.toString()] || "";
-    } catch {
-      return "";
-    }
-  };
-
-  // Check if day has P or OT status (required for shift entry)
-  const canEnterShift = (employeeId: string, day: number): boolean => {
-    const status = getAttendanceStatus(employeeId, day);
-    return status === "P" || status === "OT";
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-full mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <Link href="/">
-              <Button variant="outline" size="sm">
-                <ArrowLeft className="w-4 h-4 mr-2" />
-                Back to Home
+    <div className="min-h-screen bg-surface">
+      {/* Header */}
+      <header className="bg-white shadow-material sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <div className="flex items-center space-x-3">
+              <Link href="/">
+                <Button variant="ghost" size="icon" data-testid="button-back">
+                  <ArrowLeft className="w-5 h-5" />
+                </Button>
+              </Link>
+              <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                <Building className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-medium text-on-surface" data-testid="app-title">
+                  {appSettings?.companyName || "Loading..."}
+                </h1>
+                <p className="text-xs text-gray-600">Attendance Management</p>
+              </div>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                data-testid="button-notifications"
+              >
+                <Bell className="w-5 h-5 text-gray-600" />
               </Button>
-            </Link>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">
-                Attendance Management - {currentWorkspace?.name || workspaceId}
-              </h1>
-              <p className="text-gray-600">Track and manage employee attendance</p>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="rounded-full"
+                onClick={() => setShowSettingsModal(true)}
+                data-testid="button-settings"
+              >
+                <Settings className="w-5 h-5 text-gray-600" />
+              </Button>
             </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              data-testid="button-notifications"
-            >
-              <Bell className="w-5 h-5 text-gray-600" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-full"
-              onClick={() => setShowSettingsModal(true)}
-              data-testid="button-settings"
-            >
-              <Settings className="w-5 h-5 text-gray-600" />
-            </Button>
-          </div>
         </div>
-      </div>
+      </header>
 
       {/* Sub Header */}
       <div className="bg-gray-50 border-b">
@@ -1127,7 +1074,7 @@ export default function AttendanceView() {
             background-color: #f8fafc !important;
           }
         `}</style>
-
+        
         {tableView === "attendance" ? (
           <Card className="overflow-hidden">
             <CardHeader className="text-center bg-gray-50 border-b">
@@ -1346,7 +1293,7 @@ export default function AttendanceView() {
                   </Select>
                 </div>
               </div>
-
+              
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="min-w-full attendance-table">
                   <thead className="bg-gray-50 border-b sticky top-0 z-10">
@@ -1556,6 +1503,125 @@ export default function AttendanceView() {
 
               {updateShiftAttendanceMutation.isPending && (
                 <p className="text-sm text-gray-500 text-center">Updating shift...</p>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
+
+      {/* Attendance Status Dialog */}
+      {selectedCell && (
+        <Dialog open={true} onOpenChange={() => setSelectedCell(null)}>
+          <DialogContent className="w-full max-w-sm" aria-describedby="attendance-status-description">
+            <DialogHeader>
+              <DialogTitle>
+                Day {selectedCell.day} Attendance
+              </DialogTitle>
+            </DialogHeader>
+
+            <div id="attendance-status-description" className="sr-only">
+              Select attendance status and shift for the selected day
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Attendance Status:
+                </p>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "" 
+                        ? "bg-slate-100 text-slate-900 border-slate-700 shadow-sm" 
+                        : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "blank",
+                      shift: "" // Clear shift when attendance is cleared
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Blank
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "P" 
+                        ? "bg-emerald-100 text-emerald-800 border-emerald-600 shadow-sm" 
+                        : "bg-emerald-50 text-emerald-700 border-emerald-400 hover:bg-emerald-100 hover:border-emerald-500"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "P",
+                      shift: selectedIndividualShift || "D"
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Present (P)
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "A" 
+                        ? "bg-rose-100 text-rose-800 border-rose-600 shadow-sm" 
+                        : "bg-rose-50 text-rose-700 border-rose-400 hover:bg-rose-100 hover:border-rose-500"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "A",
+                      shift: "" // Clear shift when 'A' is selected
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Absent (A)
+                  </Button>
+
+                  <Button
+                    variant="outline"
+                    className={`justify-start border-2 transition-all duration-200 ${
+                      selectedCell.currentStatus === "OT" 
+                        ? "bg-amber-100 text-amber-900 border-amber-600 shadow-sm" 
+                        : "bg-amber-50 text-amber-800 border-amber-400 hover:bg-amber-100 hover:border-amber-500"
+                    }`}
+                    onClick={() => updateAttendanceMutation.mutate({
+                      employeeId: selectedCell.employeeId,
+                      day: selectedCell.day,
+                      status: "OT",
+                      shift: selectedIndividualShift || "D"
+                    })}
+                    disabled={updateAttendanceMutation.isPending}
+                  >
+                    Overtime (OT)
+                  </Button>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  Shift (for P/OT status):
+                </p>
+                <Select value={selectedIndividualShift} onValueChange={setSelectedIndividualShift}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select shift" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="blank">Blank</SelectItem>
+                    <SelectItem value="D">Day (D)</SelectItem>
+                    <SelectItem value="N">Night (N)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {updateAttendanceMutation.isPending && (
+                <p className="text-sm text-gray-500 text-center">Updating...</p>
               )}
             </div>
           </DialogContent>

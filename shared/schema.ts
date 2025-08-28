@@ -11,15 +11,9 @@ export const DESIGNATION_OPTIONS = [
   "Rig Man"
 ] as const;
 
-export const workspaces = pgTable("workspaces", {
-  id: varchar("id").primaryKey(),
-  name: text("name").notNull().unique(),
-});
-
 export const employees = pgTable("employees", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  workspaceId: text("workspace_id").notNull(),
-  employeeId: text("employee_id").notNull(),
+  employeeId: text("employee_id").notNull().unique(),
   name: text("name").notNull(),
   designation: text("designation").notNull(),
   designationOrder: integer("designation_order").notNull().default(999),
@@ -42,7 +36,6 @@ export const insertEmployeeSchema = createInsertSchema(employees).pick({
 export type InsertEmployee = z.infer<typeof insertEmployeeSchema>;
 export type Employee = typeof employees.$inferSelect & {
   isActive: boolean;
-  workspaceId: string;
 };
 
 export const attendanceRecord = pgTable("attendance_records", {
