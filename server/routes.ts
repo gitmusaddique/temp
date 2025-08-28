@@ -594,10 +594,10 @@ app.post("/api/export/xlsx", async (req, res) => {
       columnWidths.push({ width: 10 }); // STATUS
       // Add D/N columns (2 per day) with better spacing
       dayColumns.forEach(() => {
-        columnWidths.push({ width: 4 }); // D column
-        columnWidths.push({ width: 4 }); // N column
+        columnWidths.push({ width: 3 }); // D column
+        columnWidths.push({ width: 3 }); // N column
       });
-      columnWidths.push({ width: 12 }); // T/ON DUTY
+      columnWidths.push({ width: 15 }); // T/ON DUTY
     } else {
       // Add regular day columns
       columnWidths.push({ width: 10 }); // STATUS
