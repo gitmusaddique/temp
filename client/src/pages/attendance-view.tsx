@@ -398,7 +398,7 @@ export default function AttendanceView() {
 
   // Bulk update attendance mutation
   const bulkUpdateAttendanceMutation = useMutation({
-    mutationFn: async ({ employeeId, startDay, endDay, status }: { employeeId: string, startDay: number, endDay: number, status: string }) => {
+    mutationFn: async ({ employeeId, startDay, endDay, status, shift }: { employeeId: string, startDay: number, endDay: number, status: string, shift?: string }) => {
       const existingRecord = attendanceRecords.find(r => r.employeeId === employeeId);
       let attendanceData: Record<string, string> = {};
 
@@ -436,13 +436,77 @@ export default function AttendanceView() {
         throw new Error('Failed to update attendance');
       }
 
+      // If status is P or OT and shift is provided, update shift data for the range
+      if ((status === "P" || status === "OT") && shift) {
+        const existingShiftRecord = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+        let shiftData: Record<string, string> = {};
+
+        if (existingShiftRecord && existingShiftRecord.shiftData) {
+          try {
+            shiftData = JSON.parse(existingShiftRecord.shiftData) as Record<string, string>;
+          } catch {
+            shiftData = {};
+          }
+        }
+
+        // Update all days in the range
+        for (let day = startDay; day <= endDay; day++) {
+          shiftData[day.toString()] = shift;
+        }
+
+        await fetch('/api/shift-attendance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            employeeId,
+            month: parseInt(selectedMonth),
+            year: parseInt(selectedYear),
+            shiftData: JSON.stringify(shiftData),
+            totalOnDuty: Object.values(shiftData).filter(s => s === "P").length
+          })
+        });
+      } else if (status === "" || status === "A") {
+        // Clear shift data for the range if attendance is cleared or absent
+        const existingShiftRecord = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+        if (existingShiftRecord && existingShiftRecord.shiftData) {
+          let shiftData: Record<string, string> = {};
+          try {
+            shiftData = JSON.parse(existingShiftRecord.shiftData) as Record<string, string>;
+          } catch {
+            shiftData = {};
+          }
+
+          // Clear all days in the range
+          for (let day = startDay; day <= endDay; day++) {
+            delete shiftData[day.toString()];
+          }
+
+          await fetch('/api/shift-attendance', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              employeeId,
+              month: parseInt(selectedMonth),
+              year: parseInt(selectedYear),
+              shiftData: JSON.stringify(shiftData),
+              totalOnDuty: Object.values(shiftData).filter(s => s === "P").length
+            })
+          });
+        }
+      }
+
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
       toast({
         title: "Success",
-        description: "Attendance updated successfully"
+        description: "Attendance and shift updated successfully"
       });
       setShowDateRangeModal(false);
       setSelectedRowId(null);
@@ -453,7 +517,7 @@ export default function AttendanceView() {
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to update attendance",
+        description: "Failed to update attendance or shift",
         variant: "destructive"
       });
     }
@@ -461,7 +525,7 @@ export default function AttendanceView() {
 
   // Update attendance mutation
   const updateAttendanceMutation = useMutation({
-    mutationFn: async ({ employeeId, day, status }: { employeeId: string, day: number, status: string }) => {
+    mutationFn: async ({ employeeId, day, status, shift }: { employeeId: string, day: number, status: string, shift?: string }) => {
       const existingRecord = attendanceRecords.find(r => r.employeeId === employeeId);
       let attendanceData: Record<string, string> = {};
 
@@ -496,20 +560,78 @@ export default function AttendanceView() {
         throw new Error('Failed to update attendance');
       }
 
+      // If status is P or OT and shift is provided, update shift data
+      if ((status === "P" || status === "OT") && shift) {
+        const existingShiftRecord = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+        let shiftData: Record<string, string> = {};
+
+        if (existingShiftRecord && existingShiftRecord.shiftData) {
+          try {
+            shiftData = JSON.parse(existingShiftRecord.shiftData) as Record<string, string>;
+          } catch {
+            shiftData = {};
+          }
+        }
+
+        shiftData[day.toString()] = shift;
+
+        await fetch('/api/shift-attendance', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            employeeId,
+            month: parseInt(selectedMonth),
+            year: parseInt(selectedYear),
+            shiftData: JSON.stringify(shiftData),
+            totalOnDuty: Object.values(shiftData).filter(s => s === "P").length
+          })
+        });
+      } else if (status === "" || status === "A") {
+        // Clear shift data if attendance is cleared or absent
+        const existingShiftRecord = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+        if (existingShiftRecord && existingShiftRecord.shiftData) {
+          let shiftData: Record<string, string> = {};
+          try {
+            shiftData = JSON.parse(existingShiftRecord.shiftData) as Record<string, string>;
+          } catch {
+            shiftData = {};
+          }
+
+          delete shiftData[day.toString()];
+
+          await fetch('/api/shift-attendance', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              employeeId,
+              month: parseInt(selectedMonth),
+              year: parseInt(selectedYear),
+              shiftData: JSON.stringify(shiftData),
+              totalOnDuty: Object.values(shiftData).filter(s => s === "P").length
+            })
+          });
+        }
+      }
+
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/attendance", selectedMonth, selectedYear] });
+      queryClient.invalidateQueries({ queryKey: ["/api/shift-attendance", selectedMonth, selectedYear] });
       toast({
         title: "Success",
-        description: "Attendance updated successfully"
+        description: "Attendance and shift updated successfully"
       });
       setSelectedCell(null);
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to update attendance",
+        description: "Failed to update attendance or shift",
         variant: "destructive"
       });
     }
@@ -1084,6 +1206,8 @@ export default function AttendanceView() {
                                 }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  // Pass the current shift if available, otherwise empty string
+                                  const currentShift = getShiftAttendance(employee.id, day);
                                   setSelectedCell({ employeeId: employee.id, day, currentStatus: status });
                                 }}
                                 onMouseEnter={() => handleColumnMouseEnter(dayIndex)}
@@ -1385,7 +1509,8 @@ export default function AttendanceView() {
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
                     day: selectedCell.day,
-                    status: ""
+                    status: "",
+                    shift: "" // Clear shift when attendance is cleared
                   })}
                   disabled={updateAttendanceMutation.isPending}
                 >
@@ -1402,7 +1527,8 @@ export default function AttendanceView() {
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
                     day: selectedCell.day,
-                    status: "P"
+                    status: "P",
+                    shift: "D" // Default shift to Day when 'P' is selected
                   })}
                   disabled={updateAttendanceMutation.isPending}
                 >
@@ -1419,7 +1545,8 @@ export default function AttendanceView() {
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
                     day: selectedCell.day,
-                    status: "A"
+                    status: "A",
+                    shift: "" // Clear shift when 'A' is selected
                   })}
                   disabled={updateAttendanceMutation.isPending}
                 >
@@ -1436,7 +1563,8 @@ export default function AttendanceView() {
                   onClick={() => updateAttendanceMutation.mutate({
                     employeeId: selectedCell.employeeId,
                     day: selectedCell.day,
-                    status: "OT"
+                    status: "OT",
+                    shift: "D" // Default shift to Day when 'OT' is selected
                   })}
                   disabled={updateAttendanceMutation.isPending}
                 >
@@ -1679,7 +1807,7 @@ export default function AttendanceView() {
 
               <div className="grid grid-cols-2 gap-2">
                 <Button
-                  onClick={handleBulkClear}
+                  onClick={() => handleBulkClear()}
                   disabled={!selectedRowId || bulkUpdateAttendanceMutation.isPending}
                   variant="outline"
                   className="border-2 border-slate-400 text-slate-600 hover:bg-slate-50 hover:border-slate-500"
