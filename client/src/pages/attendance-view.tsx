@@ -873,18 +873,22 @@ export default function AttendanceView() {
                             {totalOT}
                           </td>
                           <td className="px-4 py-2 text-center text-sm" data-testid={`text-remarks-${employee.id}`}>
-                            <Button
-                              variant="outline"
-                              size="sm"
+                            <div
                               onClick={() => setSelectedRemarksEmployee({id: employee.id, name: employee.name})}
-                              className="text-xs px-2 py-1 h-7 max-w-full"
-                              data-testid={`button-remarks-${employee.id}`}
+                              className="min-h-[28px] px-2 py-1 text-xs border border-gray-200 rounded cursor-pointer hover:border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all max-w-32 mx-auto"
+                              data-testid={`input-remarks-${employee.id}`}
+                              title="Click to edit remarks"
                             >
-                              {remarksState[employee.id] ? 
-                                <span className="truncate max-w-20">{remarksState[employee.id]}</span> : 
-                                "Add Remarks"
-                              }
-                            </Button>
+                              {remarksState[employee.id] ? (
+                                <span className="text-gray-900 truncate block">
+                                  {remarksState[employee.id]}
+                                </span>
+                              ) : (
+                                <span className="text-gray-400 italic">
+                                  Add remarks...
+                                </span>
+                              )}
+                            </div>
                           </td>
                         </tr>
                       );
