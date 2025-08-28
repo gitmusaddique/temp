@@ -23,6 +23,8 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
 
 export default function AttendanceView() {
   const { workspaceId } = useParams();
+  
+  // All useState hooks declared first in consistent order
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
     return now.getMonth() + 1 <= 12 ? (now.getMonth() + 1).toString() : "12";
@@ -38,7 +40,7 @@ export default function AttendanceView() {
   const [showSelectionPanel, setShowSelectionPanel] = useState(false);
   const [selectedDesignation, setSelectedDesignation] = useState("all");
   const [modalDesignationFilter, setModalDesignationFilter] = useState("all");
-  const [modalStatusFilter, setModalStatusFilter] = useState("active"); // Default to active filter
+  const [modalStatusFilter, setModalStatusFilter] = useState("active");
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [appSettings, setAppSettings] = useState<{ companyName: string; rigName: string } | null>(null);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
@@ -52,11 +54,13 @@ export default function AttendanceView() {
   const [selectedShiftCell, setSelectedShiftCell] = useState<{employeeId: string, day: number, currentShift: string} | null>(null);
   const [selectedBulkShift, setSelectedBulkShift] = useState<string>("D");
   const [selectedIndividualShift, setSelectedIndividualShift] = useState<string>("D");
-  
-  // Local state for remarks to avoid constant API calls
   const [remarksState, setRemarksState] = useState<Record<string, string>>({});
 
-  // Fetch workspace info
+  // All custom hooks declared after useState
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  // All useQuery hooks declared next
   const { data: workspaces = [] } = useQuery({
     queryKey: ['workspaces'],
     queryFn: async () => {
@@ -85,8 +89,6 @@ export default function AttendanceView() {
       setAppSettings(settings);
     }
   }, [settings]);
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
 
   // Fetch employees
   const { data: employees = [], isLoading: employeesLoading } = useQuery({

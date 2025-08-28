@@ -18,7 +18,7 @@ interface EmployeeCardProps {
   onDelete: () => void;
 }
 
-export default function EmployeeCard({ employee, onDelete }: EmployeeCardProps) {
+export function EmployeeCard({ employee, onDelete }: EmployeeCardProps) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [formData, setFormData] = useState({
     name: employee.name,
