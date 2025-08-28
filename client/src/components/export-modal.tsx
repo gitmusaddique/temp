@@ -17,7 +17,6 @@ interface ExportModalProps {
   defaultYear?: string;
   selectedEmployees?: Set<string>;
   showAllEmployees?: boolean;
-  showShiftTable?: boolean;
 }
 
 export default function ExportModal({
@@ -26,8 +25,7 @@ export default function ExportModal({
   defaultMonth = new Date().getMonth() + 1 <= 12 ? (new Date().getMonth() + 1).toString() : "12",
   defaultYear = new Date().getFullYear().toString(),
   selectedEmployees = new Set(),
-  showAllEmployees = true,
-  showShiftTable = false
+  showAllEmployees = true
 }: ExportModalProps) {
   const [exportData, setExportData] = useState({
     month: defaultMonth,
@@ -217,11 +215,9 @@ export default function ExportModal({
                 <SelectItem value="attendance">
                   Attendance Table (Main)
                 </SelectItem>
-                {showShiftTable && (
-                  <SelectItem value="shifts">
-                    Shift Table (Day/Night)
-                  </SelectItem>
-                )}
+                <SelectItem value="shifts">
+                  Shift Table (Day/Night)
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
