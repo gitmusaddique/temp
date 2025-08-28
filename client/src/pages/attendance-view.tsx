@@ -521,10 +521,14 @@ export default function AttendanceView() {
 
   // Validate date range
   const validateDateRange = (start: string, end: string): boolean => {
+    if (!start || !end || start.trim() === "" || end.trim() === "") {
+      return false;
+    }
+    
     const startDay = parseInt(start);
     const endDay = parseInt(end);
     
-    if (!startDay || !endDay || startDay < 1 || endDay < 1 || startDay > daysInMonth || endDay > daysInMonth) {
+    if (isNaN(startDay) || isNaN(endDay) || startDay < 1 || endDay < 1 || startDay > daysInMonth || endDay > daysInMonth) {
       return false;
     }
     
@@ -533,10 +537,19 @@ export default function AttendanceView() {
 
   // Handle bulk fill
   const handleBulkFill = (status: string) => {
-    if (!selectedRowId || !startDate || !endDate) {
+    if (!selectedRowId) {
+      toast({
+        title: "Error", 
+        description: "Please select an employee first by clicking the radio button",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!startDate || !endDate || startDate.trim() === "" || endDate.trim() === "") {
       toast({
         title: "Error",
-        description: "Please select a row and valid date range",
+        description: "Please enter both start and end dates",
         variant: "destructive"
       });
       return;
@@ -561,10 +574,19 @@ export default function AttendanceView() {
 
   // Handle bulk clear
   const handleBulkClear = () => {
-    if (!selectedRowId || !startDate || !endDate) {
+    if (!selectedRowId) {
       toast({
         title: "Error",
-        description: "Please select a row and valid date range",
+        description: "Please select an employee first by clicking the radio button", 
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!startDate || !endDate || startDate.trim() === "" || endDate.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Please enter both start and end dates",
         variant: "destructive"
       });
       return;
@@ -589,10 +611,19 @@ export default function AttendanceView() {
 
   // Handle bulk shift fill
   const handleBulkShiftFill = (shift: string) => {
-    if (!selectedRowId || !startDate || !endDate) {
+    if (!selectedRowId) {
       toast({
         title: "Error",
-        description: "Please select a row and valid date range",
+        description: "Please select an employee first by clicking the radio button",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (!startDate || !endDate || startDate.trim() === "" || endDate.trim() === "") {
+      toast({
+        title: "Error",
+        description: "Please enter both start and end dates",
         variant: "destructive"
       });
       return;
@@ -1538,7 +1569,13 @@ export default function AttendanceView() {
                   min="1"
                   max={daysInMonth}
                   value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Allow empty or valid numbers only
+                    if (value === '' || (!isNaN(parseInt(value)) && parseInt(value) >= 1 && parseInt(value) <= daysInMonth)) {
+                      setStartDate(value);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder="1"
                   data-testid="input-start-date"
@@ -1553,7 +1590,13 @@ export default function AttendanceView() {
                   min="1"
                   max={daysInMonth}
                   value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    // Allow empty or valid numbers only
+                    if (value === '' || (!isNaN(parseInt(value)) && parseInt(value) >= 1 && parseInt(value) <= daysInMonth)) {
+                      setEndDate(value);
+                    }
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   placeholder={daysInMonth.toString()}
                   data-testid="input-end-date"
