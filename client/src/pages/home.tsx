@@ -318,7 +318,7 @@ export default function Home() {
                                 {employee.name}
                               </h3>
                               <p className="text-sm text-gray-600 truncate">
-                                ID: {employee.serialNumber}
+                                SL.No: {index + 1}
                               </p>
                             </div>
                             <div className="flex-shrink-0">

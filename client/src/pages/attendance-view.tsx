@@ -692,6 +692,12 @@ export default function AttendanceView() {
             transform: scale(1.05);
             transition: all 0.2s ease;
           }
+          .attendance-table tbody tr:hover {
+            background-color: #f1f5f9 !important;
+          }
+          .attendance-table tbody tr:hover td {
+            background-color: #f1f5f9 !important;
+          }
           .attendance-table .day-column-0:hover,
           .attendance-table .day-column-1:hover,
           .attendance-table .day-column-2:hover,
