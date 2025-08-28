@@ -52,6 +52,9 @@ export default function AttendanceView() {
   const [selectedShiftCell, setSelectedShiftCell] = useState<{employeeId: string, day: number, currentShift: string} | null>(null);
   const [selectedBulkShift, setSelectedBulkShift] = useState<string>("D");
   const [selectedIndividualShift, setSelectedIndividualShift] = useState<string>("D");
+  
+  // Local state for remarks to avoid constant API calls
+  const [remarksState, setRemarksState] = useState<Record<string, string>>({});
 
   // Fetch workspace info
   const { data: workspaces = [] } = useQuery({
@@ -200,11 +203,6 @@ export default function AttendanceView() {
   const displayEmployees = showAllEmployees 
     ? filteredEmployees.filter(emp => emp.isActive) // Only show active employees by default
     : filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
-
-
-
-  // Local state for remarks to avoid constant API calls
-  const [remarksState, setRemarksState] = useState<Record<string, string>>({});
 
   // Reset selections when designation filter changes
   React.useEffect(() => {
