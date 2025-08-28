@@ -47,7 +47,7 @@ export default function AttendanceView() {
   const [bulkAction, setBulkAction] = useState<"fill" | "clear" | null>(null);
   const [hoveredColumn, setHoveredColumn] = useState<number | null>(null);
   const [selectedRemarksEmployee, setSelectedRemarksEmployee] = useState<{id: string, name: string} | null>(null);
-  const [showShiftTable, setShowShiftTable] = useState(false);
+  const [tableView, setTableView] = useState<"attendance" | "shift">("attendance");
   const [selectedShiftCell, setSelectedShiftCell] = useState<{employeeId: string, day: number, currentShift: string} | null>(null);
   const [selectedBulkShift, setSelectedBulkShift] = useState<string>("D");
   const [selectedIndividualShift, setSelectedIndividualShift] = useState<string>("D");
@@ -881,14 +881,15 @@ export default function AttendanceView() {
                   {showAllEmployees ? "Select Employees" : `Selected (${selectedEmployees.size})`}
                 </Button>
 
-                <Button
-                  variant="outline"
-                  onClick={() => setShowShiftTable(!showShiftTable)}
-                  className="bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-600 hover:border-purple-700 font-medium px-4 py-2"
-                  data-testid="button-toggle-shift-table"
-                >
-                  {showShiftTable ? "Hide Shift Table" : "Show Shift Table"}
-                </Button>
+                <Select value={tableView} onValueChange={(value: "attendance" | "shift") => setTableView(value)}>
+                  <SelectTrigger className="w-48 bg-purple-600 hover:bg-purple-700 text-white border-2 border-purple-600 hover:border-purple-700 font-medium" data-testid="select-table-view">
+                    <SelectValue placeholder="Select table view" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="attendance">Attendance Table</SelectItem>
+                    <SelectItem value="shift">Shift Table</SelectItem>
+                  </SelectContent>
+                </Select>
 
                 <Button 
                   onClick={() => setShowExportModal(true)}
@@ -1037,7 +1038,7 @@ export default function AttendanceView() {
         </DialogContent>
       </Dialog>
 
-      {/* Attendance Table */}
+      {/* Table Container */}
       <div className="max-w-full mx-auto px-4 py-8">
         <style jsx>{`
           .attendance-table tbody tr:hover {
@@ -1073,17 +1074,19 @@ export default function AttendanceView() {
             background-color: #f8fafc !important;
           }
         `}</style>
-        <Card className="overflow-hidden">
-          <CardHeader className="text-center bg-gray-50 border-b">
-            <CardTitle className="text-lg font-medium" data-testid="text-company-name">
-              {appSettings?.companyName || "Loading..."}
-            </CardTitle>
-            <p className="text-sm text-gray-600">Attendance</p>
-            <p className="text-sm font-medium" data-testid="text-attendance-period">
-              {appSettings?.rigName || "Loading..."} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
-              MONTH:-{monthNames[parseInt(selectedMonth) - 1].toUpperCase()}. {selectedYear}
-            </p>
-          </CardHeader>
+        
+        {tableView === "attendance" ? (
+          <Card className="overflow-hidden">
+            <CardHeader className="text-center bg-gray-50 border-b">
+              <CardTitle className="text-lg font-medium" data-testid="text-company-name">
+                {appSettings?.companyName || "Loading..."}
+              </CardTitle>
+              <p className="text-sm text-gray-600">Attendance</p>
+              <p className="text-sm font-medium" data-testid="text-attendance-period">
+                {appSettings?.rigName || "Loading..."} &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; 
+                MONTH:-{monthNames[parseInt(selectedMonth) - 1].toUpperCase()}. {selectedYear}
+              </p>
+            </CardHeader>
 
           <CardContent className="p-0">
             {/* Designation Filter */}
@@ -1257,10 +1260,8 @@ export default function AttendanceView() {
             </div>
           </CardContent>
         </Card>
-
-        {/* Shift Attendance Table */}
-        {showShiftTable && (
-          <Card className="overflow-hidden mt-8">
+        ) : (
+          <Card className="overflow-hidden">
             <CardHeader className="text-center bg-gray-50 border-b">
               <CardTitle className="text-lg font-medium">
                 {appSettings?.companyName || "Loading..."} - Shift Attendance
@@ -1273,6 +1274,26 @@ export default function AttendanceView() {
             </CardHeader>
 
             <CardContent className="p-0">
+              {/* Designation Filter for Shift Table */}
+              <div className="p-4 border-b bg-gray-50">
+                <div className="flex items-center space-x-4">
+                  <label className="text-sm font-medium text-gray-700">Filter by Designation:</label>
+                  <Select value={selectedDesignation} onValueChange={setSelectedDesignation}>
+                    <SelectTrigger className="w-48" data-testid="select-designation-filter-shift">
+                      <SelectValue placeholder="Filter by designation" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Designations</SelectItem>
+                      {uniqueDesignations.map(designation => (
+                        <SelectItem key={designation} value={designation}>
+                          {designation}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              
               <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
                 <table className="min-w-full attendance-table">
                   <thead className="bg-gray-50 border-b sticky top-0 z-10">
@@ -1402,7 +1423,7 @@ export default function AttendanceView() {
         defaultYear={selectedYear}
         selectedEmployees={selectedEmployees}
         showAllEmployees={showAllEmployees}
-        showShiftTable={showShiftTable}
+        showShiftTable={tableView === "shift"}
       />
 
       {/* Shift Selection Dialog */}
@@ -1821,7 +1842,7 @@ export default function AttendanceView() {
                 </Select>
               </div>
 
-              {showShiftTable && (
+              {tableView === "shift" && (
                 <>
                   <div className="border-t pt-4">
                     <p className="text-sm font-medium text-gray-700 mb-3">Fill Shift Range With:</p>
