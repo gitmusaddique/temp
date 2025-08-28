@@ -352,12 +352,9 @@ app.post("/api/export/xlsx", async (req, res) => {
         // Apply base style to all cells
         cell.style = { ...baseStyle };
 
-        // Ensure blank cells have white background
+        // Skip styling for completely blank cells - let them be truly blank
         if (cell.value === '' || cell.value === null || cell.value === undefined) {
-          cell.style = {
-            ...baseStyle,
-            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } }
-          };
+          cell.style = baseStyle; // Only apply base style without any fill
           return;
         }
 
