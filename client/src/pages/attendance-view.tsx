@@ -23,7 +23,7 @@ function debounce<T extends (...args: any[]) => void>(func: T, wait: number): T 
 
 export default function AttendanceView() {
   const { workspaceId } = useParams();
-  
+
   // All useState hooks declared first in consistent order
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const now = new Date();
@@ -79,12 +79,6 @@ export default function AttendanceView() {
     queryKey: ["/api/settings", workspaceId],
     enabled: !!workspaceId,
   });
-
-  useEffect(() => {
-    if (settings) {
-      setAppSettings(settings);
-    }
-  }, [settings]);
 
   // Fetch employees
   const { data: employees = [], isLoading: employeesLoading } = useQuery({
@@ -206,95 +200,6 @@ export default function AttendanceView() {
   const displayEmployees = showAllEmployees 
     ? filteredEmployees.filter(emp => emp.isActive) // Only show active employees by default
     : filteredEmployees.filter(emp => selectedEmployees.has(emp.id));
-
-  // Reset selections when designation filter changes
-  React.useEffect(() => {
-    if (selectedDesignation !== "all") {
-      const filteredIds = new Set(employees.filter(emp => 
-        emp.designation === selectedDesignation
-      ).map(emp => emp.id));
-      setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
-    }
-  }, [selectedDesignation, employees]);
-
-  // Initialize selectedEmployees with all active employees when data loads
-  React.useEffect(() => {
-    if (employees.length > 0 && selectedEmployees.size === 0) {
-      const activeEmployeeIds = employees.filter(emp => emp.isActive).map(emp => emp.id);
-      setSelectedEmployees(new Set(activeEmployeeIds));
-    }
-  }, [employees.length, selectedEmployees.size]);
-
-  // Reset modal designation filter when main designation changes
-  React.useEffect(() => {
-    setModalDesignationFilter("all");
-    setModalStatusFilter("active");
-  }, [selectedDesignation]);
-
-  // Initialize remarks state when attendance records change
-  React.useEffect(() => {
-    if (attendanceRecords.length > 0) {
-      const newRemarksState: Record<string, string> = {};
-      attendanceRecords.forEach(record => {
-        if (record.remarks && !(record.employeeId in remarksState)) {
-          newRemarksState[record.employeeId] = record.remarks;
-        }
-      });
-
-      if (Object.keys(newRemarksState).length > 0) {
-        setRemarksState(prev => ({ ...prev, ...newRemarksState }));
-      }
-    }
-  }, [attendanceRecords.length]);
-
-  // Toggle individual employee selection
-  const toggleEmployeeSelection = (employeeId: string) => {
-    const newSelected = new Set(selectedEmployees);
-    if (newSelected.has(employeeId)) {
-      newSelected.delete(employeeId);
-    } else {
-      newSelected.add(employeeId);
-    }
-    setSelectedEmployees(newSelected);
-  };
-
-  // Get attendance status for a specific employee and day
-  const getAttendanceStatus = (employeeId: string, day: number): string => {
-    const record = attendanceRecords.find(r => r.employeeId === employeeId);
-    if (!record || !record.attendanceData) return "";
-
-    try {
-      const data = JSON.parse(record.attendanceData) as Record<string, string>;
-      return data[day.toString()] || "";
-    } catch {
-      return "";
-    }
-  };
-
-  // Get remarks for a specific employee
-  const getEmployeeRemarks = (employeeId: string): string => {
-    const record = attendanceRecords.find(r => r.employeeId === employeeId);
-    return record?.remarks || "";
-  };
-
-  // Get shift attendance for a specific employee and day
-  const getShiftAttendance = (employeeId: string, day: number): string => {
-    const record = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
-    if (!record || !record.shiftData) return "";
-
-    try {
-      const data = JSON.parse(record.shiftData) as Record<string, string>;
-      return data[day.toString()] || "";
-    } catch {
-      return "";
-    }
-  };
-
-  // Check if day has P or OT status (required for shift entry)
-  const canEnterShift = (employeeId: string, day: number): boolean => {
-    const status = getAttendanceStatus(employeeId, day);
-    return status === "P" || status === "OT";
-  };
 
   // Debounced remarks update
   const updateRemarksMutation = useMutation({
@@ -843,6 +748,96 @@ export default function AttendanceView() {
 
   const handleColumnMouseLeave = () => {
     setHoveredColumn(null);
+  };
+
+  // All useEffect hooks declared at the end after all other hooks
+  // Reset selections when designation filter changes
+  React.useEffect(() => {
+    if (selectedDesignation !== "all") {
+      const filteredIds = new Set(employees.filter(emp => 
+        emp.designation === selectedDesignation
+      ).map(emp => emp.id));
+      setSelectedEmployees(prev => new Set([...prev].filter(id => filteredIds.has(id))));
+    }
+  }, [selectedDesignation, employees]);
+
+  // Initialize selectedEmployees with all active employees when data loads
+  React.useEffect(() => {
+    if (employees.length > 0 && selectedEmployees.size === 0) {
+      const activeEmployeeIds = employees.filter(emp => emp.isActive).map(emp => emp.id);
+      setSelectedEmployees(new Set(activeEmployeeIds));
+    }
+  }, [employees.length, selectedEmployees.size]);
+
+  // Reset modal designation filter when main designation changes
+  React.useEffect(() => {
+    setModalDesignationFilter("all");
+    setModalStatusFilter("active");
+  }, [selectedDesignation]);
+
+  // Initialize remarks state when attendance records change
+  React.useEffect(() => {
+    if (attendanceRecords.length > 0) {
+      const newRemarksState: Record<string, string> = {};
+      attendanceRecords.forEach(record => {
+        if (record.remarks && !(record.employeeId in remarksState)) {
+          newRemarksState[record.employeeId] = record.remarks;
+        }
+      });
+
+      if (Object.keys(newRemarksState).length > 0) {
+        setRemarksState(prev => ({ ...prev, ...newRemarksState }));
+      }
+    }
+  }, [attendanceRecords.length]);
+
+  // Toggle individual employee selection
+  const toggleEmployeeSelection = (employeeId: string) => {
+    const newSelected = new Set(selectedEmployees);
+    if (newSelected.has(employeeId)) {
+      newSelected.delete(employeeId);
+    } else {
+      newSelected.add(employeeId);
+    }
+    setSelectedEmployees(newSelected);
+  };
+
+  // Get attendance status for a specific employee and day
+  const getAttendanceStatus = (employeeId: string, day: number): string => {
+    const record = attendanceRecords.find(r => r.employeeId === employeeId);
+    if (!record || !record.attendanceData) return "";
+
+    try {
+      const data = JSON.parse(record.attendanceData) as Record<string, string>;
+      return data[day.toString()] || "";
+    } catch {
+      return "";
+    }
+  };
+
+  // Get remarks for a specific employee
+  const getEmployeeRemarks = (employeeId: string): string => {
+    const record = attendanceRecords.find(r => r.employeeId === employeeId);
+    return record?.remarks || "";
+  };
+
+  // Get shift attendance for a specific employee and day
+  const getShiftAttendance = (employeeId: string, day: number): string => {
+    const record = shiftAttendanceRecords.find(r => r.employeeId === employeeId);
+    if (!record || !record.shiftData) return "";
+
+    try {
+      const data = JSON.parse(record.shiftData) as Record<string, string>;
+      return data[day.toString()] || "";
+    } catch {
+      return "";
+    }
+  };
+
+  // Check if day has P or OT status (required for shift entry)
+  const canEnterShift = (employeeId: string, day: number): boolean => {
+    const status = getAttendanceStatus(employeeId, day);
+    return status === "P" || status === "OT";
   };
 
   return (
@@ -1561,125 +1556,6 @@ export default function AttendanceView() {
 
               {updateShiftAttendanceMutation.isPending && (
                 <p className="text-sm text-gray-500 text-center">Updating shift...</p>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
-      {/* Attendance Status Dialog */}
-      {selectedCell && (
-        <Dialog open={true} onOpenChange={() => setSelectedCell(null)}>
-          <DialogContent className="w-full max-w-sm" aria-describedby="attendance-status-description">
-            <DialogHeader>
-              <DialogTitle>
-                Day {selectedCell.day} Attendance
-              </DialogTitle>
-            </DialogHeader>
-
-            <div id="attendance-status-description" className="sr-only">
-              Select attendance status and shift for the selected day
-            </div>
-
-            <div className="space-y-4">
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">
-                  Attendance Status:
-                </p>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <Button
-                    variant="outline"
-                    className={`justify-start border-2 transition-all duration-200 ${
-                      selectedCell.currentStatus === "" 
-                        ? "bg-slate-100 text-slate-900 border-slate-700 shadow-sm" 
-                        : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50 hover:border-slate-400"
-                    }`}
-                    onClick={() => updateAttendanceMutation.mutate({
-                      employeeId: selectedCell.employeeId,
-                      day: selectedCell.day,
-                      status: "blank",
-                      shift: "" // Clear shift when attendance is cleared
-                    })}
-                    disabled={updateAttendanceMutation.isPending}
-                  >
-                    Blank
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className={`justify-start border-2 transition-all duration-200 ${
-                      selectedCell.currentStatus === "P" 
-                        ? "bg-emerald-100 text-emerald-800 border-emerald-600 shadow-sm" 
-                        : "bg-emerald-50 text-emerald-700 border-emerald-400 hover:bg-emerald-100 hover:border-emerald-500"
-                    }`}
-                    onClick={() => updateAttendanceMutation.mutate({
-                      employeeId: selectedCell.employeeId,
-                      day: selectedCell.day,
-                      status: "P",
-                      shift: selectedIndividualShift || "D"
-                    })}
-                    disabled={updateAttendanceMutation.isPending}
-                  >
-                    Present (P)
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className={`justify-start border-2 transition-all duration-200 ${
-                      selectedCell.currentStatus === "A" 
-                        ? "bg-rose-100 text-rose-800 border-rose-600 shadow-sm" 
-                        : "bg-rose-50 text-rose-700 border-rose-400 hover:bg-rose-100 hover:border-rose-500"
-                    }`}
-                    onClick={() => updateAttendanceMutation.mutate({
-                      employeeId: selectedCell.employeeId,
-                      day: selectedCell.day,
-                      status: "A",
-                      shift: "" // Clear shift when 'A' is selected
-                    })}
-                    disabled={updateAttendanceMutation.isPending}
-                  >
-                    Absent (A)
-                  </Button>
-
-                  <Button
-                    variant="outline"
-                    className={`justify-start border-2 transition-all duration-200 ${
-                      selectedCell.currentStatus === "OT" 
-                        ? "bg-amber-100 text-amber-900 border-amber-600 shadow-sm" 
-                        : "bg-amber-50 text-amber-800 border-amber-400 hover:bg-amber-100 hover:border-amber-500"
-                    }`}
-                    onClick={() => updateAttendanceMutation.mutate({
-                      employeeId: selectedCell.employeeId,
-                      day: selectedCell.day,
-                      status: "OT",
-                      shift: selectedIndividualShift || "D"
-                    })}
-                    disabled={updateAttendanceMutation.isPending}
-                  >
-                    Overtime (OT)
-                  </Button>
-                </div>
-              </div>
-
-              <div>
-                <p className="text-sm font-medium text-gray-700 mb-2">
-                  Shift (for P/OT status):
-                </p>
-                <Select value={selectedIndividualShift} onValueChange={setSelectedIndividualShift}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select shift" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="blank">Blank</SelectItem>
-                    <SelectItem value="D">Day (D)</SelectItem>
-                    <SelectItem value="N">Night (N)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {updateAttendanceMutation.isPending && (
-                <p className="text-sm text-gray-500 text-center">Updating...</p>
               )}
             </div>
           </DialogContent>
