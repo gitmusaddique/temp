@@ -304,7 +304,7 @@ export default function Home() {
               </Card>
             ) : (
               <div className="space-y-2">
-                {filteredEmployees.map((employee) => (
+                {filteredEmployees.map((employee, index) => (
                   <Card key={employee.id} className="hover:shadow-md transition-shadow" data-testid={`employee-card-${employee.id}`}>
                     <CardContent className="p-4">
                       <div className="flex items-center justify-between w-full">
