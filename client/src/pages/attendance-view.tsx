@@ -674,6 +674,22 @@ export default function AttendanceView() {
 
       {/* Attendance Table */}
       <div className="max-w-full mx-auto px-4 py-8">
+        <style jsx>{`
+          .attendance-table th:hover {
+            background-color: #e0e7ff !important;
+          }
+          .attendance-table tr:hover {
+            background-color: #f8fafc !important;
+          }
+          .attendance-table tr:hover td {
+            background-color: #f8fafc !important;
+          }
+          .attendance-table td.day-cell:hover {
+            background-color: #dbeafe !important;
+            transform: scale(1.05);
+            transition: all 0.2s ease;
+          }
+        `}</style>
         <Card className="overflow-hidden">
           <CardHeader className="text-center bg-gray-50 border-b">
             <CardTitle className="text-lg font-medium" data-testid="text-company-name">
@@ -707,7 +723,7 @@ export default function AttendanceView() {
               </div>
             </div>
             <div className="overflow-x-auto max-h-[600px] overflow-y-auto">
-              <table className="min-w-full">
+              <table className="min-w-full attendance-table">
                 <thead className="bg-gray-50 border-b sticky top-0 z-10">
                   <tr>
                     <th className="px-2 py-2 text-left text-xs font-extrabold text-gray-700 uppercase border-r" data-testid="header-select">
@@ -795,10 +811,10 @@ export default function AttendanceView() {
                             return (
                               <td 
                                 key={day} 
-                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer hover:bg-blue-50 ${
+                                className={`px-1 py-2 text-center text-xs border-r cursor-pointer day-cell ${
                                   status === "P" ? "bg-green-50 text-green-700" : 
                                   status === "A" ? "bg-red-50 text-red-700" : 
-                                  status === "OT" ? "bg-yellow-50 text-yellow-800" : "hover:bg-gray-100"
+                                  status === "OT" ? "bg-yellow-50 text-yellow-800" : ""
                                 }`}
                                 onClick={(e) => {
                                   e.stopPropagation();
