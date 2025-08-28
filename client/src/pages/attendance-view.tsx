@@ -878,7 +878,7 @@ export default function AttendanceView() {
                   data-testid="button-toggle-employee-view"
                   className="bg-blue-600 hover:bg-blue-700 text-white border-2 border-blue-600 hover:border-blue-700 font-medium px-4 py-2"
                 >
-                  {showAllEmployees ? "Select Employees" : `Selected (${selectedEmployees.size})`}
+                  {showAllEmployees ? `Selected (${selectedEmployees.size})` : `Selected (${selectedEmployees.size})`}
                 </Button>
 
                 <Select value={tableView} onValueChange={(value: "attendance" | "shift") => setTableView(value)}>
