@@ -482,7 +482,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         const shouldNotBeBold = isNameColumn || isDesignationColumn || isRemarksColumn;
 
         // Base style for all cells (including empty ones)
-        const baseStyle = {
+        let baseStyle: any = {
           alignment: { horizontal: 'center', vertical: 'middle' },
           border: {
             top: { style: 'thin' },
@@ -493,6 +493,11 @@ app.post("/api/export/xlsx", async (req, res) => {
           // Make cells bold except for name, designation, and remarks columns
           font: { bold: !shouldNotBeBold }
         };
+
+        // Special alignment for name and designation columns - left align to show from start
+        if (isNameColumn || isDesignationColumn || isRemarksColumn) {
+          baseStyle.alignment = { horizontal: 'left', vertical: 'middle' };
+        }
 
         // Apply base style to all cells
         cell.style = { ...baseStyle };
@@ -558,7 +563,7 @@ app.post("/api/export/xlsx", async (req, res) => {
     // Set column widths
     let columnWidths = [
       { width: 6 },   // SL.NO
-      { width: 20 },  // NAME
+      { width: 25 },  // NAME - increased width for longer names
       { width: 15 },  // DESIGNATION
     ];
 
