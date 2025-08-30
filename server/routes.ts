@@ -503,26 +503,52 @@ app.post("/api/export/xlsx", async (req, res) => {
           return;
         }
 
-        // Color code shift columns only - only for cells with actual values and when withColors is enabled
-        if (withColors && includeShifts && colNumber >= 4) {
+        // Apply colors when withColors is enabled
+        if (withColors && colNumber >= 4) {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
-            // Color shift columns based on alternating pattern (D/N columns)
-            const dayColumnIndex = 4; // Starting column for day data
-            const isEvenColumn = (colNumber - dayColumnIndex) % 2 === 0;
+            
+            if (includeShifts) {
+              // Color shift columns based on alternating pattern (D/N columns)
+              const dayColumnIndex = 4; // Starting column for day data
+              const isEvenColumn = (colNumber - dayColumnIndex) % 2 === 0;
 
-            if (isEvenColumn) {
-              // Day shift column (even positions)
-              cell.style = {
-                ...baseStyle,
-                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } } // Light blue for Day
-              };
+              if (isEvenColumn) {
+                // Day shift column (even positions)
+                cell.style = {
+                  ...baseStyle,
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } } // Light blue for Day
+                };
+              } else {
+                // Night shift column (odd positions)
+                cell.style = {
+                  ...baseStyle,
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
+                };
+              }
             } else {
-              // Night shift column (odd positions)
-              cell.style = {
-                ...baseStyle,
-                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
-              };
+              // Color regular attendance columns based on status
+              const status = cellValue.toString();
+              let fillColor = '';
+
+              if (status === 'P' || status === 'Present') {
+                fillColor = 'FF90EE90'; // Light green for Present
+              } else if (status === 'A' || status === 'Absent') {
+                fillColor = 'FFFFC0CB'; // Light red for Absent
+              } else if (status === 'OT' || status === 'Overtime') {
+                fillColor = 'FFFFFF00'; // Light yellow for Overtime
+              } else if (status === 'L' || status === 'Leave') {
+                fillColor = 'FFADD8E6'; // Light blue for Leave
+              } else if (status === 'H' || status === 'Holiday') {
+                fillColor = 'FFFFA500'; // Light orange for Holiday
+              }
+
+              if (fillColor) {
+                cell.style = {
+                  ...baseStyle,
+                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } }
+                };
+              }
             }
           }
         }
