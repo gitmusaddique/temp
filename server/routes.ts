@@ -253,7 +253,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       headers.push('T/ON DUTY');
       secondHeaders.push('');
     } else {
-      headers = ['SL.NO', 'NAME', 'DESIGNATION', 'STATUS', ...dayColumns.map(day => day.toString()), 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
+      headers = ['SL.NO', 'NAME', 'DESIGNATION', ...dayColumns.map(day => day.toString()), 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
     }
 
     // Add title rows
@@ -425,11 +425,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       row.getCell(2).value = employee.name || '';
       row.getCell(3).value = employee.designation || '';
 
-      if (!includeShifts) {
-        row.getCell(4).value = employee.status || '';
-      }
-
-      let cellIndex = includeShifts ? 4 : 5;
+      let cellIndex = includeShifts ? 4 : 4;
 
       if (includeShifts) {
         // Add day columns with shift data (D/N columns)
@@ -522,7 +518,7 @@ app.post("/api/export/xlsx", async (req, res) => {
         }
 
         // Color code attendance/shift columns - only for cells with actual values and when withColors is enabled
-        if (withColors && colNumber >= (includeShifts ? 4 : 5)) {
+        if (withColors && colNumber >= (includeShifts ? 4 : 4)) {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
             const headerForColumn = headers[colNumber - 1];
@@ -542,7 +538,7 @@ app.post("/api/export/xlsx", async (req, res) => {
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
                 };
               }
-            } else if (colNumber < (includeShifts ? 4 : 5) + (includeShifts ? daysInMonth * 2 : daysInMonth)) {
+            } else if (colNumber < (includeShifts ? 4 : 4) + (includeShifts ? daysInMonth * 2 : daysInMonth)) {
               // Regular attendance columns
               switch(cellValue.toString().trim()) {
                 case 'P':
@@ -598,7 +594,6 @@ app.post("/api/export/xlsx", async (req, res) => {
       columnWidths.push({ width: 18 }); // T/ON DUTY - increased width
     } else {
       // Add regular day columns
-      columnWidths.push({ width: 10 }); // STATUS
       columnWidths.push(...dayColumns.map(() => ({ width: 4 })));
       columnWidths.push({ width: 12 }); // T/ON DUTY
       columnWidths.push({ width: 10 }); // OT DAYS
