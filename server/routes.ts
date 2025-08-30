@@ -341,17 +341,9 @@ app.post("/api/export/xlsx", async (req, res) => {
         const cell = headerRow2.getCell(index + 1);
         cell.value = header;
 
-        let fillColor = 'FFE6E6E6';
-        if (header === 'D') {
-          fillColor = 'FFE3F2FD'; // Light blue for Day shift
-        } else if (header === 'N') {
-          fillColor = 'FFF3E5F5'; // Light purple for Night shift
-        }
-
-        cell.style = {
+        const cellStyle: any = {
           font: { bold: true, size: 11 },
           alignment: { horizontal: 'center', vertical: 'middle' },
-          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } },
           border: {
             top: { style: 'thin' },
             bottom: { style: 'medium' },
@@ -359,6 +351,18 @@ app.post("/api/export/xlsx", async (req, res) => {
             right: { style: 'thin' }
           }
         };
+
+        if (withColors) {
+          let fillColor = 'FFE6E6E6';
+          if (header === 'D') {
+            fillColor = 'FFE3F2FD'; // Light blue for Day shift
+          } else if (header === 'N') {
+            fillColor = 'FFF3E5F5'; // Light purple for Night shift
+          }
+          cellStyle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fillColor } };
+        }
+
+        cell.style = cellStyle;
       });
 
       // Merge cells for day numbers in shift table
@@ -527,7 +531,7 @@ app.post("/api/export/xlsx", async (req, res) => {
               // Color shift columns based on alternating pattern (D/N columns)
               const dayColumnIndex = 4; // Starting column for day data
               const isEvenColumn = (colNumber - dayColumnIndex) % 2 === 0;
-              
+
               if (isEvenColumn) {
                 // Day shift column (even positions)
                 cell.style = {
