@@ -253,7 +253,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       headers.push('T/ON DUTY');
       secondHeaders.push('');
     } else {
-      headers = ['SL.NO', 'NAME', 'DESIGNATION', 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
+      headers = ['SL.NO', 'NAME', 'DESIGNATION', ...dayColumns.map(d => d.toString()), 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
     }
 
     // Add title rows
@@ -453,15 +453,19 @@ app.post("/api/export/xlsx", async (req, res) => {
         row.getCell(cellIndex).value = shiftPresentDays > 0 ? shiftPresentDays : '';
 
       } else {
-        // Skip daily status columns for regular attendance export
-        // Only include summary data
-        
+        // Add regular day columns with attendance status
+        dayColumns.forEach(day => {
+          const status = attendanceData[day.toString()];
+          row.getCell(cellIndex).value = status || '';
+          cellIndex++;
+        });
+
         // Calculate regular totals
         const attendanceValues = Object.values(attendanceData);
         const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
         const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
 
-        // Add summary columns only
+        // Add summary columns
         row.getCell(cellIndex).value = presentDays > 0 ? presentDays : '';
         cellIndex++;
         row.getCell(cellIndex).value = otDays > 0 ? otDays : '';
@@ -540,7 +544,11 @@ app.post("/api/export/xlsx", async (req, res) => {
       });
       columnWidths.push({ width: 18 }); // T/ON DUTY - increased width
     } else {
-      // Add summary columns only
+      // Add day columns
+      dayColumns.forEach(() => {
+        columnWidths.push({ width: 4 }); // Day columns
+      });
+      // Add summary columns
       columnWidths.push({ width: 12 }); // T/ON DUTY
       columnWidths.push({ width: 10 }); // OT DAYS
       columnWidths.push({ width: 30 }); // REMARKS
