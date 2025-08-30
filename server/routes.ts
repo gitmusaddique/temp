@@ -532,15 +532,15 @@ app.post("/api/export/xlsx", async (req, res) => {
               let fillColor = '';
 
               if (status === 'P' || status === 'Present') {
-                fillColor = 'FF90EE90'; // Light green for Present
+                fillColor = 'FFD4F4DD'; // Very light green for Present
               } else if (status === 'A' || status === 'Absent') {
-                fillColor = 'FFFFC0CB'; // Light red for Absent
+                fillColor = 'FFFFEAEA'; // Very light red for Absent
               } else if (status === 'OT' || status === 'Overtime') {
-                fillColor = 'FFFFFF00'; // Light yellow for Overtime
+                fillColor = 'FFFFF9E6'; // Very light yellow for Overtime
               } else if (status === 'L' || status === 'Leave') {
-                fillColor = 'FFADD8E6'; // Light blue for Leave
+                fillColor = 'FFE6F3FF'; // Very light blue for Leave
               } else if (status === 'H' || status === 'Holiday') {
-                fillColor = 'FFFFA500'; // Light orange for Holiday
+                fillColor = 'FFFFF0E6'; // Very light orange for Holiday
               }
 
               if (fillColor) {
