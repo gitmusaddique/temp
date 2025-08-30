@@ -524,15 +524,18 @@ app.post("/api/export/xlsx", async (req, res) => {
             const headerForColumn = headers[colNumber - 1];
 
             if (includeShifts) {
-              // Color shift columns
-              if (headerForColumn && headerForColumn.includes(' D')) {
-                // Day shift column
+              // Color shift columns based on alternating pattern (D/N columns)
+              const dayColumnIndex = 4; // Starting column for day data
+              const isEvenColumn = (colNumber - dayColumnIndex) % 2 === 0;
+              
+              if (isEvenColumn) {
+                // Day shift column (even positions)
                 cell.style = {
                   ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } } // Light blue for Day
                 };
-              } else if (headerForColumn && headerForColumn.includes(' N')) {
-                // Night shift column  
+              } else {
+                // Night shift column (odd positions)
                 cell.style = {
                   ...baseStyle,
                   fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
