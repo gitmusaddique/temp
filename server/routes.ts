@@ -253,7 +253,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       headers.push('T/ON DUTY');
       secondHeaders.push('');
     } else {
-      headers = ['SL.NO', 'NAME', 'DESIGNATION', ...dayColumns.map(day => day.toString()), 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
+      headers = ['SL.NO', 'NAME', 'DESIGNATION', 'T/ON DUTY', 'OT DAYS', 'REMARKS'];
     }
 
     // Add title rows
@@ -453,37 +453,15 @@ app.post("/api/export/xlsx", async (req, res) => {
         row.getCell(cellIndex).value = shiftPresentDays > 0 ? shiftPresentDays : '';
 
       } else {
-        // Add regular day columns
-        dayColumns.forEach(day => {
-          const status = attendanceData[day.toString()];
-          const isBlank = !status ||
-                         status === '' ||
-                         status === null ||
-                         status === undefined ||
-                         status.toString().trim() === '' ||
-                         status.toString().toLowerCase() === 'blank';
-
-          if (isBlank) {
-            row.getCell(cellIndex).value = '';
-          } else {
-            switch(status) {
-              case 'P': case 'Present': row.getCell(cellIndex).value = 'P'; break;
-              case 'A': case 'Absent': row.getCell(cellIndex).value = 'A'; break;
-              case 'OT': case 'Overtime': row.getCell(cellIndex).value = 'OT'; break;
-              case 'L': case 'Leave': row.getCell(cellIndex).value = 'L'; break;
-              case 'H': case 'Holiday': row.getCell(cellIndex).value = 'H'; break;
-              default: row.getCell(cellIndex).value = status;
-            }
-          }
-          cellIndex++;
-        });
-
+        // Skip daily status columns for regular attendance export
+        // Only include summary data
+        
         // Calculate regular totals
         const attendanceValues = Object.values(attendanceData);
         const presentDays = attendanceValues.filter(status => status === 'P' || status === 'Present').length;
         const otDays = attendanceValues.filter(status => status === 'OT' || status === 'Overtime').length;
 
-        // Add summary columns
+        // Add summary columns only
         row.getCell(cellIndex).value = presentDays > 0 ? presentDays : '';
         cellIndex++;
         row.getCell(cellIndex).value = otDays > 0 ? otDays : '';
@@ -521,64 +499,26 @@ app.post("/api/export/xlsx", async (req, res) => {
           return;
         }
 
-        // Color code attendance/shift columns - only for cells with actual values and when withColors is enabled
-        if (withColors && colNumber >= (includeShifts ? 4 : 4)) {
+        // Color code shift columns only - only for cells with actual values and when withColors is enabled
+        if (withColors && includeShifts && colNumber >= 4) {
           const cellValue = cell.value;
           if (cellValue && cellValue.toString().trim() !== '') {
-            const headerForColumn = headers[colNumber - 1];
+            // Color shift columns based on alternating pattern (D/N columns)
+            const dayColumnIndex = 4; // Starting column for day data
+            const isEvenColumn = (colNumber - dayColumnIndex) % 2 === 0;
 
-            if (includeShifts) {
-              // Color shift columns based on alternating pattern (D/N columns)
-              const dayColumnIndex = 4; // Starting column for day data
-              const isEvenColumn = (colNumber - dayColumnIndex) % 2 === 0;
-
-              if (isEvenColumn) {
-                // Day shift column (even positions)
-                cell.style = {
-                  ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } } // Light blue for Day
-                };
-              } else {
-                // Night shift column (odd positions)
-                cell.style = {
-                  ...baseStyle,
-                  fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
-                };
-              }
-            } else if (colNumber < (includeShifts ? 4 : 4) + (includeShifts ? daysInMonth * 2 : daysInMonth)) {
-              // Regular attendance columns
-              switch(cellValue.toString().trim()) {
-                case 'P':
-                  cell.style = {
-                    ...baseStyle,
-                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD5F4E6' } } // Light green
-                  };
-                  break;
-                case 'A':
-                  cell.style = {
-                    ...baseStyle,
-                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFDE2E4' } } // Light red
-                  };
-                  break;
-                case 'OT':
-                  cell.style = {
-                    ...baseStyle,
-                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFEF7CD' } } // Light yellow
-                  };
-                  break;
-                case 'L':
-                  cell.style = {
-                    ...baseStyle,
-                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE6E6FF' } } // Light blue
-                  };
-                  break;
-                case 'H':
-                  cell.style = {
-                    ...baseStyle,
-                    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0F0F0' } } // Light gray
-                  };
-                  break;
-              }
+            if (isEvenColumn) {
+              // Day shift column (even positions)
+              cell.style = {
+                ...baseStyle,
+                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } } // Light blue for Day
+              };
+            } else {
+              // Night shift column (odd positions)
+              cell.style = {
+                ...baseStyle,
+                fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3E5F5' } } // Light purple for Night
+              };
             }
           }
         }
@@ -600,8 +540,7 @@ app.post("/api/export/xlsx", async (req, res) => {
       });
       columnWidths.push({ width: 18 }); // T/ON DUTY - increased width
     } else {
-      // Add regular day columns
-      columnWidths.push(...dayColumns.map(() => ({ width: 4 })));
+      // Add summary columns only
       columnWidths.push({ width: 12 }); // T/ON DUTY
       columnWidths.push({ width: 10 }); // OT DAYS
       columnWidths.push({ width: 30 }); // REMARKS
